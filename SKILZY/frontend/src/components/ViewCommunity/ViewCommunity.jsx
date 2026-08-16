@@ -1,17 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Users, 
-  Calendar, 
-  Award, 
   Settings, 
   MessageSquare, 
   Store,
   TrendingUp,
-  UserPlus,
   Shield,
   Trash
 } from 'lucide-react';
@@ -50,53 +45,52 @@ const ViewCommunity = ({ community, onClose, isAdmin = false }) => {
 
   return (
     <>
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="w-full max-w-7xl mx-4 bg-white dark:bg-gray-800 rounded-lg max-h-[95vh] overflow-hidden">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+      <div className="w-full max-w-6xl bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 max-h-[92vh] overflow-hidden flex flex-col shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-lg flex items-center justify-center">
-              <Users className="w-6 h-6 text-white" />
+        <div className="flex items-center justify-between p-5 border-b border-gray-100 dark:border-gray-700/80">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-slate-900 dark:bg-slate-100 rounded-lg flex items-center justify-center text-white dark:text-slate-900 font-bold">
+              <Users className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-2xl font-bold">{communityData.name}</h2>
-              <p className="text-sm text-gray-500">{communityData.memberCount} members</p>
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white leading-tight">{communityData.name}</h2>
+              <p className="text-xs text-gray-500">{communityData.memberCount} members • Admin: {communityData.adminName}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             {isAdmin && (
-              <Button 
-                variant="destructive"
-                className="bg-red-600 hover:bg-red-700 text-white"
+              <button 
+                className="px-3 py-1.5 text-xs font-semibold bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 rounded-md transition flex items-center gap-1"
                 onClick={() => setShowDeleteModal(true)}
               >
-                <Trash className="w-4 h-4 mr-2" /> Delete
-              </Button>
+                <Trash className="w-3.5 h-3.5" /> Delete
+              </button>
             )}
-            <Button onClick={onClose} variant="outline">
+            <button onClick={onClose} className="px-3 py-1.5 text-xs font-medium border border-gray-300 dark:border-gray-700 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition">
               Close
-            </Button>
+            </button>
           </div>
         </div>
 
         {/* Navigation Tabs */}
-        <div className="border-b border-gray-200 dark:border-gray-700">
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="w-full justify-start rounded-none border-0 bg-transparent">
+        <div className="flex-1 overflow-hidden flex flex-col">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
+            <TabsList className="w-full justify-start rounded-none border-b border-gray-100 dark:border-gray-700/80 bg-gray-50/50 dark:bg-gray-900/50 px-4 pt-1">
               {tabs.map((tab) => (
                 <TabsTrigger 
                   key={tab.id} 
                   value={tab.id}
-                  className="flex items-center gap-2 data-[state=active]:bg-indigo-50 data-[state=active]:text-indigo-600"
+                  className="flex items-center gap-2 text-xs py-2 px-4 rounded-md data-[state=active]:bg-white dark:data-[state=active]:bg-gray-800 data-[state=active]:text-gray-900 dark:data-[state=active]:text-white font-medium"
                 >
-                  <tab.icon className="w-4 h-4" />
+                  <tab.icon className="w-3.5 h-3.5" />
                   {tab.label}
                 </TabsTrigger>
               ))}
             </TabsList>
 
             {/* Tab Contents */}
-            <div className="p-6 max-h-[70vh] overflow-y-auto">
+            <div className="p-6 overflow-y-auto flex-1">
               <TabsContent value="dashboard">
                 <WeeklyDashboard communityData={communityData} />
               </TabsContent>
@@ -142,19 +136,20 @@ const ViewCommunity = ({ community, onClose, isAdmin = false }) => {
         </div>
       </div>
     </div>
+    
     {/* Delete Community Modal */}
     {showDeleteModal && (
-      <div className="fixed inset-0 z-50 flex items-center justify-center">
-        <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowDeleteModal(false)} />
-        <div className="relative bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 w-full max-w-md p-6 shadow-xl">
-          <h3 className="text-xl font-semibold mb-2">Delete Community</h3>
-          <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
-            This action cannot be undone. Are you sure you want to delete "{communityData.name}"?
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="absolute inset-0 bg-black/40 backdrop-blur-xs" onClick={() => setShowDeleteModal(false)} />
+        <div className="relative bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 w-full max-w-md p-6 shadow-xl space-y-3">
+          <h3 className="text-base font-bold text-gray-900 dark:text-white">Delete Community</h3>
+          <p className="text-xs text-gray-600 dark:text-gray-300">
+            Are you sure you want to delete "{communityData.name}"? This action cannot be undone.
           </p>
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setShowDeleteModal(false)}>Cancel</Button>
-            <Button
-              className="bg-red-600 hover:bg-red-700 text-white"
+          <div className="flex justify-end gap-2 pt-2">
+            <button className="px-3 py-1.5 text-xs font-medium border border-gray-300 rounded-md hover:bg-gray-50" onClick={() => setShowDeleteModal(false)}>Cancel</button>
+            <button
+              className="px-3 py-1.5 text-xs font-semibold bg-red-600 text-white rounded-md hover:bg-red-700"
               disabled={deleting}
               onClick={async () => {
                 try {
@@ -169,8 +164,8 @@ const ViewCommunity = ({ community, onClose, isAdmin = false }) => {
                 }
               }}
             >
-              {deleting ? 'Deleting...' : 'Delete'}
-            </Button>
+              {deleting ? 'Deleting...' : 'Delete Community'}
+            </button>
           </div>
         </div>
       </div>

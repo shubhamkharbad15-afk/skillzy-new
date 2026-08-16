@@ -7,18 +7,99 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
+# Node / Frontend
+node_modules/
+frontend/node_modules/
+dist/
+frontend/dist/
+dist-ssr/
+frontend/.vite/
+.npm
 *.local
 
-# Editor directories and files
+# Python / Backend
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+.venv/
+venv/
+env/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Environment Variables (NEVER commit secrets)
+.env
+.env.local
+.env.*.local
+backend/.env
+
+# Python testing and cache
+.pytest_cache/
+.coverage
+htmlcov/
+.hypothesis/
+
+# Database Files (local development only)
+*.sqlite3
+*.sqlite
+*.db
+*.db-journal
+skill_connect.db
+
+# IDE & Editor
 .vscode/*
 !.vscode/extensions.json
-.idea
+.idea/
+*.swp
+*.swo
+*~
+*.sublime-project
+*.sublime-workspace
+
+# OS Files
 .DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Package Manager
+package-lock.json
+*.lock
+
+# Python
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+
+# Build outputs
+build/
+dist/
+*.egg-info/
+
+# Misc
+.cache
+.parcel-cache
+.next
+out/
+

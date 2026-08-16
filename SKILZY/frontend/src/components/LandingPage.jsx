@@ -55,27 +55,27 @@ const LandingPage = () => {
       </header>
 
       {/* Hero Section */}
-      <section className="py-20 px-4">
+      <section className="py-24 px-4">
         <div className="container mx-auto text-center">
           <div className="max-w-4xl mx-auto">
-            <h1 className="text-5xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-indigo-600 to-blue-400 bg-clip-text text-transparent">
+            <h1 className="text-5xl md:text-6xl font-bold mb-6 text-gray-900 dark:text-white leading-tight tracking-tight">
               Connect. Collaborate. Grow.
             </h1>
-            <p className="text-xl text-gray-600 dark:text-gray-400 mb-8 max-w-2xl mx-auto">
+            <p className="text-lg text-gray-600 dark:text-gray-400 mb-12 max-w-2xl mx-auto leading-relaxed">
               Join a community of like-minded professionals. Share goals, organize events, and build meaningful connections that propel your career forward.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button
                 onClick={() => navigate("/login")}
                 size="lg"
-                className="bg-gradient-to-r from-indigo-600 to-blue-400 hover:opacity-90 text-white px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
+                className="bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:hover:bg-slate-50 text-white dark:text-slate-900 px-8 py-3 rounded-md font-semibold transition-colors"
               >
                 Get Started <ArrowRight className="ml-2 w-5 h-5" />
               </Button>
               <Button
                 variant="outline"
                 size="lg"
-                className="border-indigo-600 text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900 px-8 py-3 rounded-xl"
+                className="border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-800 px-8 py-3 rounded-md font-semibold"
                 onClick={() => navigate("/about")}
               >
                 Learn More
@@ -86,68 +86,79 @@ const LandingPage = () => {
       </section>
 
       {/* Features Section */}
-      <section id="features" className="py-20 px-4">
+      <section id="features" className="py-24 px-4 bg-white dark:bg-gray-900/50">
         <div className="container mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">Why Choose Skillzy?</h2>
-            <p className="text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-              More than just networking - build genuine relationships and accelerate your growth
+          <div className="text-center mb-20">
+            <h2 className="text-4xl md:text-5xl font-bold mb-6 text-gray-900 dark:text-white">Why Choose Skillzy?</h2>
+            <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+              More than just networking—build genuine relationships and accelerate your growth with proven features.
             </p>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {/* Feature Cards */}
-            <Card className="p-8 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300 group">
-              <div className="w-12 h-12 bg-gradient-to-br from-indigo-600 to-blue-400 rounded-lg flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-                <Users className="w-6 h-6 text-white" />
+            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-8 hover:border-gray-300 dark:hover:border-gray-600 transition">
+              <div className="w-12 h-12 bg-slate-900 dark:bg-slate-100 rounded-lg flex items-center justify-center mb-6">
+                <Users className="w-6 h-6 text-white dark:text-slate-900" />
               </div>
-              <h3 className="text-xl font-semibold mb-4">Smart Matching</h3>
-              <p className="text-gray-600 dark:text-gray-400">
+              <h3 className="text-lg font-bold mb-3 text-gray-900 dark:text-white">Smart Matching</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
                 Connect with professionals who share your goals, interests, and career aspirations through our intelligent matching system.
               </p>
-            </Card>
+            </div>
 
-            <Card className="p-8 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300 group">
-              <div className="w-12 h-12 bg-gradient-to-br from-indigo-600 to-blue-400 rounded-lg flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-                <Calendar className="w-6 h-6 text-white" />
+            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-8 hover:border-gray-300 dark:hover:border-gray-600 transition">
+              <div className="w-12 h-12 bg-slate-900 dark:bg-slate-100 rounded-lg flex items-center justify-center mb-6">
+                <Calendar className="w-6 h-6 text-white dark:text-slate-900" />
               </div>
-              <h3 className="text-xl font-semibold mb-4">Event Organization</h3>
-              <p className="text-gray-600 dark:text-gray-400">
+              <h3 className="text-lg font-bold mb-3 text-gray-900 dark:text-white">Event Organization</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
                 Create and join professional events, workshops, and meetups. Build your network through meaningful in-person connections.
               </p>
-            </Card>
+            </div>
 
-            <Card className="p-8 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300 group">
-              <div className="w-12 h-12 bg-gradient-to-br from-indigo-600 to-blue-400 rounded-lg flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-                <Target className="w-6 h-6 text-white" />
+            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-8 hover:border-gray-300 dark:hover:border-gray-600 transition">
+              <div className="w-12 h-12 bg-slate-900 dark:bg-slate-100 rounded-lg flex items-center justify-center mb-6">
+                <Target className="w-6 h-6 text-white dark:text-slate-900" />
               </div>
-              <h3 className="text-xl font-semibold mb-4">Goal Tracking</h3>
-              <p className="text-gray-600 dark:text-gray-400">
+              <h3 className="text-lg font-bold mb-3 text-gray-900 dark:text-white">Goal Tracking</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
                 Set career goals, track progress, and find accountability partners who will help you stay motivated and focused.
               </p>
-            </Card>
+            </div>
 
-            <Card className="p-8 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300 group">
-              <div className="w-12 h-12 bg-gradient-to-br from-indigo-600 to-blue-400 rounded-lg flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-                <Zap className="w-6 h-6 text-white" />
+            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-8 hover:border-gray-300 dark:hover:border-gray-600 transition">
+              <div className="w-12 h-12 bg-slate-900 dark:bg-slate-100 rounded-lg flex items-center justify-center mb-6">
+                <Zap className="w-6 h-6 text-white dark:text-slate-900" />
               </div>
-              <h3 className="text-xl font-semibold mb-4">Skill Exchange</h3>
-              <p className="text-gray-600 dark:text-gray-400">
+              <h3 className="text-lg font-bold mb-3 text-gray-900 dark:text-white">Skill Exchange</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
                 Share your expertise and learn from others. Create a mutually beneficial ecosystem of knowledge and growth.
               </p>
-            </Card>
+            </div>
 
-            <Card className="p-8 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300 group">
-              <div className="w-12 h-12 bg-gradient-to-br from-indigo-600 to-blue-400 rounded-lg flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-                <Users className="w-6 h-6 text-white" />
+            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-8 hover:border-gray-300 dark:hover:border-gray-600 transition">
+              <div className="w-12 h-12 bg-slate-900 dark:bg-slate-100 rounded-lg flex items-center justify-center mb-6">
+                <Users className="w-6 h-6 text-white dark:text-slate-900" />
               </div>
-              <h3 className="text-xl font-semibold mb-4">Communities</h3>
-              <p className="text-gray-600 dark:text-gray-400">
+              <h3 className="text-lg font-bold mb-3 text-gray-900 dark:text-white">Communities</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
                 Join specialized communities based on your industry, interests, or career stage. Find your tribe and grow together.
               </p>
-            </Card>
+            </div>
 
-            <Card className="p-8 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300 group">
+            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-8 hover:border-gray-300 dark:hover:border-gray-600 transition">
+              <div className="w-12 h-12 bg-slate-900 dark:bg-slate-100 rounded-lg flex items-center justify-center mb-6">
+                <Users className="w-6 h-6 text-white dark:text-slate-900" />
+              </div>
+              <h3 className="text-lg font-bold mb-3 text-gray-900 dark:text-white">Global Network</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+                Connect across industries, geographies, and backgrounds. Expand your perspective and create lasting professional relationships.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
               <div className="w-12 h-12 bg-gradient-to-br from-indigo-600 to-blue-400 rounded-lg flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
                 <ArrowRight className="w-6 h-6 text-white" />
               </div>
