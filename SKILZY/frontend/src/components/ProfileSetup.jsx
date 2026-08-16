@@ -1,808 +1,406 @@
-import { useState, useEffect } from "react";
-import {
-    Users,
-    ArrowRight,
-    X,
-    Plus,
-    Sparkles,
-    Target,
-    User,
-    Loader2
-} from "lucide-react";
+﻿import { useState, useEffect } from "react";
+import { X, Plus, Loader2, User, Sparkles, Target, ArrowRight, ArrowLeft, Check } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { fetchWithAuth } from "../lib/api";
 
+const STEP_CONFIG = [
+  { id: 1, label: "Basic info", icon: User, title: "Your professional background", description: "Tell the Skillzy community who you are." },
+  { id: 2, label: "Skills", icon: Sparkles, title: "What do you know?", description: "Add the skills you have. Others will find you based on these." },
+  { id: 3, label: "Goals", icon: Target, title: "Interests and goals", description: "What are you interested in, and where are you headed?" }
+];
+
 const ProfileSetup = () => {
-    const navigate = useNavigate();
+  const navigate = useNavigate();
+  const [step, setStep] = useState(1);
+  const [skills, setSkills] = useState([]);
+  const [interests, setInterests] = useState([]);
+  const [currentSkill, setCurrentSkill] = useState("");
+  const [currentInterest, setCurrentInterest] = useState("");
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [formData, setFormData] = useState({
+    title: "",
+    company: "",
+    location: "",
+    bio: "",
+    careerGoals: ""
+  });
 
-    const [step, setStep] = useState(1);
-
-    const [skills, setSkills] = useState([]);
-    const [interests, setInterests] = useState([]);
-
-    const [currentSkill, setCurrentSkill] = useState("");
-    const [currentInterest, setCurrentInterest] = useState("");
-
-    // User data, loading and errors
-    const [user, setUser] = useState(null);
-    const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
-    const [error, setError] = useState("");
-
-    // Profile form data
-    const [formData, setFormData] = useState({
-        title: "",
-        company: "",
-        location: "",
-        bio: "",
-        careerGoals: ""
-    });
-
-    // --------------------------------------------------
-    // FETCH CURRENT USER
-    // --------------------------------------------------
-
-    useEffect(() => {
-        const fetchUserData = async () => {
-            try {
-                console.log("Fetching current user...");
-
-                const userData = await fetchWithAuth("/users/me");
-
-                console.log("Current user:", userData);
-
-                setUser(userData);
-            } catch (err) {
-                console.error("Failed to fetch user data:", err);
-
-                setError(
-                    "Failed to load your data. Please try logging in again."
-                );
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchUserData();
-    }, []);
-
-    // --------------------------------------------------
-    // FORM INPUT
-    // --------------------------------------------------
-
-    const handleInputChange = (field, value) => {
-        setFormData((prev) => ({
-            ...prev,
-            [field]: value
-        }));
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const userData = await fetchWithAuth("/users/me");
+        setUser(userData);
+      } catch (err) {
+        setError("Failed to load your data. Please try logging in again.");
+      } finally {
+        setLoading(false);
+      }
     };
+    fetchUserData();
+  }, []);
 
-    // --------------------------------------------------
-    // SKILLS
-    // --------------------------------------------------
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
 
-    const addSkill = () => {
-        const skill = currentSkill.trim();
-
-        if (skill && !skills.includes(skill)) {
-            setSkills((prev) => [...prev, skill]);
-            setCurrentSkill("");
-        }
-    };
-
-    const removeSkill = (skill) => {
-        setSkills((prev) => prev.filter((s) => s !== skill));
-    };
-
-    // --------------------------------------------------
-    // INTERESTS
-    // --------------------------------------------------
-
-    const addInterest = () => {
-        const interest = currentInterest.trim();
-
-        if (interest && !interests.includes(interest)) {
-            setInterests((prev) => [...prev, interest]);
-            setCurrentInterest("");
-        }
-    };
-
-    const removeInterest = (interest) => {
-        setInterests((prev) =>
-            prev.filter((i) => i !== interest)
-        );
-    };
-
-    // --------------------------------------------------
-    // STEPS
-    // --------------------------------------------------
-
-    const nextStep = () => {
-        if (step < 3) {
-            setStep((prev) => prev + 1);
-        }
-    };
-
-    const prevStep = () => {
-        if (step > 1) {
-            setStep((prev) => prev - 1);
-        }
-    };
-
-    // --------------------------------------------------
-    // COMPLETE PROFILE
-    // --------------------------------------------------
-
-    const handleComplete = async () => {
-        // Clear previous error
-        setError("");
-
-        // Validate required fields
-        if (
-            !formData.title.trim() ||
-            !formData.bio.trim() ||
-            skills.length === 0 ||
-            interests.length === 0
-        ) {
-            alert(
-                "Please fill in required fields and add at least one skill and interest."
-            );
-            return;
-        }
-
-        const profileData = {
-            ...formData,
-            title: formData.title.trim(),
-            company: formData.company.trim(),
-            location: formData.location.trim(),
-            bio: formData.bio.trim(),
-            careerGoals: formData.careerGoals.trim(),
-            skills,
-            interests
-        };
-
-        console.log(
-            "📤 Sending profile data to backend:",
-            profileData
-        );
-
-        try {
-            setSaving(true);
-
-            // --------------------------------------------
-            // SAVE PROFILE
-            // --------------------------------------------
-
-            const response = await fetchWithAuth(
-                "/users/me/profile",
-                {
-                    method: "POST",
-                    body: JSON.stringify(profileData)
-                }
-            );
-
-            console.log(
-                "✅ Profile saved successfully:",
-                response
-            );
-
-            // --------------------------------------------
-            // PROFILE SAVED
-            // NOW GO TO DASHBOARD
-            // --------------------------------------------
-
-            alert("Profile setup complete!");
-
-            console.log(
-                "🚀 Profile completed. Navigating to dashboard..."
-            );
-
-            navigate("/dashboard", {
-                replace: true
-            });
-
-        } catch (err) {
-            console.error(
-                "❌ Failed to save profile:",
-                err
-            );
-
-            const errorMessage =
-                err?.message ||
-                "Sorry, we couldn't save your profile. Please try again.";
-
-            console.error(
-                "Backend error:",
-                errorMessage
-            );
-
-            setError(errorMessage);
-
-            alert(
-                `Profile save failed:\n\n${errorMessage}`
-            );
-
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    // --------------------------------------------------
-    // STEP ICONS
-    // --------------------------------------------------
-
-    const stepIcons = [
-        User,
-        Sparkles,
-        Target
-    ];
-
-    const StepIcon = stepIcons[step - 1];
-
-    // --------------------------------------------------
-    // LOADING
-    // --------------------------------------------------
-
-    if (loading) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-slate-900">
-                <Loader2 className="w-12 h-12 animate-spin text-blue-500" />
-            </div>
-        );
+  const addSkill = () => {
+    const skill = currentSkill.trim();
+    if (skill && !skills.includes(skill)) {
+      setSkills(prev => [...prev, skill]);
+      setCurrentSkill("");
     }
+  };
 
-    // --------------------------------------------------
-    // ERROR LOADING USER
-    // --------------------------------------------------
-
-    if (error && !saving) {
-        return (
-            <div className="min-h-screen flex flex-col gap-4 items-center justify-center text-red-400 bg-slate-900 px-6">
-
-                <p className="text-center">
-                    {error}
-                </p>
-
-                <button
-                    onClick={() => navigate("/login")}
-                    className="px-4 py-2 bg-blue-500 text-white rounded-md"
-                >
-                    Go to Login
-                </button>
-
-            </div>
-        );
+  const addInterest = () => {
+    const interest = currentInterest.trim();
+    if (interest && !interests.includes(interest)) {
+      setInterests(prev => [...prev, interest]);
+      setCurrentInterest("");
     }
+  };
 
-    // --------------------------------------------------
-    // UI
-    // --------------------------------------------------
+  const handleComplete = async () => {
+    setError("");
+    if (!formData.title.trim() || !formData.bio.trim() || skills.length === 0 || interests.length === 0) {
+      setError("Please fill in all required fields and add at least one skill and one interest.");
+      return;
+    }
+    const profileData = {
+      title: formData.title.trim(),
+      company: formData.company.trim(),
+      location: formData.location.trim(),
+      bio: formData.bio.trim(),
+      careerGoals: formData.careerGoals.trim(),
+      skills,
+      interests
+    };
+    try {
+      setSaving(true);
+      await fetchWithAuth("/users/me/profile", { method: "POST", body: JSON.stringify(profileData) });
+      navigate("/dashboard", { replace: true });
+    } catch (err) {
+      setError(err?.message || "Failed to save your profile. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
 
+  if (loading) {
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-gray-900 to-black flex items-center justify-center p-4">
-
-            {/* Background effects */}
-
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-
-                <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-blue-500/10 to-purple-600/10 rounded-full blur-3xl animate-pulse"></div>
-
-                <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-br from-pink-500/10 to-orange-600/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
-
-                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-br from-indigo-500/5 to-cyan-500/5 rounded-full blur-3xl animate-pulse delay-500"></div>
-
-            </div>
-
-            <div className="w-full max-w-2xl relative z-10">
-
-                {/* Header */}
-
-                <div className="text-center mb-8">
-
-                    <div className="flex items-center justify-center space-x-3 mb-6">
-
-                        <div className="relative">
-
-                            <div className="w-14 h-14 bg-gradient-to-br from-blue-500 via-purple-500 to-indigo-500 rounded-2xl flex items-center justify-center shadow-2xl shadow-blue-500/20">
-
-                                <Users className="w-8 h-8 text-white" />
-
-                            </div>
-
-                            <div className="absolute -inset-2 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-2xl blur animate-pulse"></div>
-
-                        </div>
-
-                        <div>
-
-                            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-
-                                Welcome, {user?.first_name || "User"}!
-
-                            </h1>
-
-                            <div className="w-20 h-1 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full mx-auto mt-1"></div>
-
-                        </div>
-
-                    </div>
-
-                    <p className="text-slate-400 text-lg">
-                        Let's create your perfect professional profile
-                    </p>
-
-                </div>
-
-                {/* Step indicator */}
-
-                <div className="flex justify-center mb-10">
-
-                    <div className="flex items-center space-x-4">
-
-                        {[1, 2, 3].map((i) => {
-
-                            const IconComponent =
-                                stepIcons[i - 1];
-
-                            return (
-                                <div
-                                    key={i}
-                                    className="flex items-center"
-                                >
-
-                                    <div
-                                        className={`relative transition-all duration-500 ${
-                                            i <= step
-                                                ? "transform scale-110"
-                                                : ""
-                                        }`}
-                                    >
-
-                                        <div
-                                            className={`w-12 h-12 rounded-2xl flex items-center justify-center text-sm font-bold transition-all duration-500 ${
-                                                i <= step
-                                                    ? "bg-gradient-to-br from-blue-500 to-purple-500 text-white shadow-xl shadow-blue-500/25"
-                                                    : "bg-slate-800 text-slate-500 shadow-lg border border-slate-700"
-                                            }`}
-                                        >
-
-                                            <IconComponent className="w-5 h-5" />
-
-                                        </div>
-
-                                        {i <= step && (
-                                            <div className="absolute -inset-1 bg-gradient-to-br from-blue-500/30 to-purple-500/30 rounded-2xl blur animate-pulse"></div>
-                                        )}
-
-                                    </div>
-
-                                    {i < 3 && (
-                                        <div
-                                            className={`w-12 h-1 mx-2 rounded-full transition-all duration-500 ${
-                                                i < step
-                                                    ? "bg-gradient-to-r from-blue-500 to-purple-500"
-                                                    : "bg-slate-700"
-                                            }`}
-                                        ></div>
-                                    )}
-
-                                </div>
-                            );
-
-                        })}
-
-                    </div>
-
-                </div>
-
-                {/* Main card */}
-
-                <div className="bg-slate-800/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-slate-700/50 overflow-hidden">
-
-                    {/* Card header */}
-
-                    <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 p-8 border-b border-slate-700/50">
-
-                        <div className="flex items-center space-x-3 mb-2">
-
-                            <StepIcon className="w-6 h-6 text-blue-400" />
-
-                            <h2 className="text-2xl font-bold text-white">
-
-                                {step === 1 && "Basic Information"}
-
-                                {step === 2 && "Skills & Expertise"}
-
-                                {step === 3 && "Interests & Goals"}
-
-                            </h2>
-
-                        </div>
-
-                        <p className="text-slate-400">
-
-                            {step === 1 &&
-                                "Tell us about your professional background"}
-
-                            {step === 2 &&
-                                "Share your expertise and capabilities"}
-
-                            {step === 3 &&
-                                "Define your interests and aspirations"}
-
-                        </p>
-
-                    </div>
-
-                    {/* Form */}
-
-                    <div className="p-8 space-y-6">
-
-                        {/* STEP 1 */}
-
-                        {step === 1 && (
-                            <div className="space-y-6">
-
-                                <div className="space-y-3">
-
-                                    <label className="block text-sm font-semibold text-slate-300">
-                                        Professional Title{" "}
-                                        <span className="text-red-400">
-                                            *
-                                        </span>
-                                    </label>
-
-                                    <input
-                                        type="text"
-                                        value={formData.title}
-                                        onChange={(e) =>
-                                            handleInputChange(
-                                                "title",
-                                                e.target.value
-                                            )
-                                        }
-                                        placeholder="e.g. Senior Software Engineer"
-                                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    />
-
-                                </div>
-
-                                <div className="space-y-3">
-
-                                    <label className="block text-sm font-semibold text-slate-300">
-                                        Company
-                                    </label>
-
-                                    <input
-                                        type="text"
-                                        value={formData.company}
-                                        onChange={(e) =>
-                                            handleInputChange(
-                                                "company",
-                                                e.target.value
-                                            )
-                                        }
-                                        placeholder="e.g. Tech Corp"
-                                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    />
-
-                                </div>
-
-                                <div className="space-y-3">
-
-                                    <label className="block text-sm font-semibold text-slate-300">
-                                        Location
-                                    </label>
-
-                                    <input
-                                        type="text"
-                                        value={formData.location}
-                                        onChange={(e) =>
-                                            handleInputChange(
-                                                "location",
-                                                e.target.value
-                                            )
-                                        }
-                                        placeholder="e.g. San Francisco, CA"
-                                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    />
-
-                                </div>
-
-                                <div className="space-y-3">
-
-                                    <label className="block text-sm font-semibold text-slate-300">
-                                        Bio{" "}
-                                        <span className="text-red-400">
-                                            *
-                                        </span>
-                                    </label>
-
-                                    <textarea
-                                        value={formData.bio}
-                                        onChange={(e) =>
-                                            handleInputChange(
-                                                "bio",
-                                                e.target.value
-                                            )
-                                        }
-                                        placeholder="Tell us about yourself..."
-                                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[120px] resize-none"
-                                    />
-
-                                </div>
-
-                            </div>
-                        )}
-
-                        {/* STEP 2 */}
-
-                        {step === 2 && (
-                            <div className="space-y-6">
-
-                                <div className="space-y-3">
-
-                                    <label className="block text-sm font-semibold text-slate-300">
-                                        Add Skills{" "}
-                                        <span className="text-red-400">
-                                            *
-                                        </span>
-                                    </label>
-
-                                    <div className="flex space-x-3">
-
-                                        <input
-                                            type="text"
-                                            value={currentSkill}
-                                            onChange={(e) =>
-                                                setCurrentSkill(
-                                                    e.target.value
-                                                )
-                                            }
-                                            placeholder="e.g. React, Project Management"
-                                            className="flex-1 px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-xl text-white"
-                                            onKeyDown={(e) => {
-                                                if (e.key === "Enter") {
-                                                    e.preventDefault();
-                                                    addSkill();
-                                                }
-                                            }}
-                                        />
-
-                                        <button
-                                            type="button"
-                                            onClick={addSkill}
-                                            className="px-4 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl"
-                                        >
-                                            <Plus className="w-5 h-5" />
-                                        </button>
-
-                                    </div>
-
-                                </div>
-
-                                {skills.length > 0 && (
-                                    <div className="space-y-3">
-
-                                        <label className="block text-sm font-semibold text-slate-300">
-                                            Your Skills
-                                        </label>
-
-                                        <div className="flex flex-wrap gap-3">
-
-                                            {skills.map((skill) => (
-                                                <div
-                                                    key={skill}
-                                                    className="bg-gradient-to-r from-blue-900/40 to-purple-900/40 text-slate-200 px-4 py-2 rounded-xl border border-blue-500/30 flex items-center space-x-2"
-                                                >
-
-                                                    <span className="font-medium">
-                                                        {skill}
-                                                    </span>
-
-                                                    <button
-                                                        type="button"
-                                                        onClick={() =>
-                                                            removeSkill(skill)
-                                                        }
-                                                        className="text-slate-400 hover:text-red-400"
-                                                    >
-                                                        <X className="w-4 h-4" />
-                                                    </button>
-
-                                                </div>
-                                            ))}
-
-                                        </div>
-
-                                    </div>
-                                )}
-
-                            </div>
-                        )}
-
-                        {/* STEP 3 */}
-
-                        {step === 3 && (
-                            <div className="space-y-6">
-
-                                <div className="space-y-3">
-
-                                    <label className="block text-sm font-semibold text-slate-300">
-                                        Add Interests{" "}
-                                        <span className="text-red-400">
-                                            *
-                                        </span>
-                                    </label>
-
-                                    <div className="flex space-x-3">
-
-                                        <input
-                                            type="text"
-                                            value={currentInterest}
-                                            onChange={(e) =>
-                                                setCurrentInterest(
-                                                    e.target.value
-                                                )
-                                            }
-                                            placeholder="e.g. Entrepreneurship, AI"
-                                            className="flex-1 px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-xl text-white"
-                                            onKeyDown={(e) => {
-                                                if (e.key === "Enter") {
-                                                    e.preventDefault();
-                                                    addInterest();
-                                                }
-                                            }}
-                                        />
-
-                                        <button
-                                            type="button"
-                                            onClick={addInterest}
-                                            className="px-4 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl"
-                                        >
-                                            <Plus className="w-5 h-5" />
-                                        </button>
-
-                                    </div>
-
-                                </div>
-
-                                {interests.length > 0 && (
-                                    <div className="space-y-3">
-
-                                        <label className="block text-sm font-semibold text-slate-300">
-                                            Your Interests
-                                        </label>
-
-                                        <div className="flex flex-wrap gap-3">
-
-                                            {interests.map((interest) => (
-                                                <div
-                                                    key={interest}
-                                                    className="bg-gradient-to-r from-purple-900/40 to-pink-900/40 text-slate-200 px-4 py-2 rounded-xl border border-purple-500/30 flex items-center space-x-2"
-                                                >
-
-                                                    <span className="font-medium">
-                                                        {interest}
-                                                    </span>
-
-                                                    <button
-                                                        type="button"
-                                                        onClick={() =>
-                                                            removeInterest(
-                                                                interest
-                                                            )
-                                                        }
-                                                        className="text-slate-400 hover:text-red-400"
-                                                    >
-                                                        <X className="w-4 h-4" />
-                                                    </button>
-
-                                                </div>
-                                            ))}
-
-                                        </div>
-
-                                    </div>
-                                )}
-
-                                <div className="space-y-3">
-
-                                    <label className="block text-sm font-semibold text-slate-300">
-                                        Career Goals
-                                    </label>
-
-                                    <textarea
-                                        value={formData.careerGoals}
-                                        onChange={(e) =>
-                                            handleInputChange(
-                                                "careerGoals",
-                                                e.target.value
-                                            )
-                                        }
-                                        placeholder="What are your career aspirations?"
-                                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-xl text-white placeholder-slate-500 min-h-[120px] resize-none"
-                                    />
-
-                                </div>
-
-                            </div>
-                        )}
-
-                        {/* Error shown during save */}
-
-                        {error && (
-                            <div className="p-4 rounded-xl border border-red-500/30 bg-red-500/10 text-red-300">
-                                {error}
-                            </div>
-                        )}
-
-                        {/* Navigation */}
-
-                        <div className="flex justify-between items-center pt-8 border-t border-slate-700/50">
-
-                            <button
-                                type="button"
-                                onClick={prevStep}
-                                disabled={step === 1 || saving}
-                                className="px-6 py-3 bg-slate-700/50 text-slate-300 rounded-xl hover:bg-slate-600/50 disabled:opacity-50"
-                            >
-                                Previous
-                            </button>
-
-                            {step < 3 ? (
-
-                                <button
-                                    type="button"
-                                    onClick={nextStep}
-                                    disabled={saving}
-                                    className="px-8 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl flex items-center space-x-2 disabled:opacity-50"
-                                >
-
-                                    <span>Next</span>
-
-                                    <ArrowRight className="w-5 h-5" />
-
-                                </button>
-
-                            ) : (
-
-                                <button
-                                    type="button"
-                                    onClick={handleComplete}
-                                    disabled={saving}
-                                    className="px-8 py-3 bg-gradient-to-r from-green-500 to-blue-500 text-white rounded-xl flex items-center space-x-2 disabled:opacity-50"
-                                >
-
-                                    {saving ? (
-                                        <>
-                                            <Loader2 className="w-5 h-5 animate-spin" />
-                                            <span>Saving...</span>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <span>
-                                                Complete Setup
-                                            </span>
-
-                                            <ArrowRight className="w-5 h-5" />
-                                        </>
-                                    )}
-
-                                </button>
-
-                            )}
-
-                        </div>
-
-                    </div>
-
-                </div>
-
-            </div>
-
-        </div>
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-[#988686]" />
+      </div>
     );
+  }
+
+  if (error && !saving && !user) {
+    return (
+      <div className="min-h-screen bg-black flex flex-col gap-4 items-center justify-center px-6">
+        <p className="text-sm text-red-600 text-center">{error}</p>
+        <button onClick={() => navigate("/login")} className="px-4 py-2 text-sm font-medium bg-[#D1D0D0] text-black rounded-lg">
+          Go to sign in
+        </button>
+      </div>
+    );
+  }
+
+  const currentStepConfig = STEP_CONFIG[step - 1];
+
+  return (
+    <div className="min-h-screen bg-black flex flex-col">
+      {/* Header */}
+      <header className="bg-[#141111] border-b border-[#5C4E4E]/55 px-6 py-4">
+        <div className="max-w-2xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 bg-[#D1D0D0] rounded-lg flex items-center justify-center">
+              <span className="text-black font-black text-xs">S</span>
+            </div>
+            <span className="text-base font-bold text-[#D1D0D0]">Skillzy</span>
+          </div>
+          <span className="text-xs text-[#988686]">Profile setup</span>
+        </div>
+      </header>
+
+      <div className="flex-1 flex items-start justify-center py-10 px-4">
+        <div className="w-full max-w-2xl">
+          {/* Step progress */}
+          <div className="mb-8">
+            <div className="flex items-center gap-0">
+              {STEP_CONFIG.map((s, index) => (
+                <div key={s.id} className="flex items-center flex-1">
+                  <div className="flex items-center gap-2.5">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
+                      step > s.id
+                        ? "bg-emerald-500 text-white"
+                        : step === s.id
+                        ? "bg-[#D1D0D0] text-black"
+                        : "bg-[#5C4E4E]/35 text-[#988686]"
+                    }`}>
+                      {step > s.id ? <Check className="w-4 h-4" /> : s.id}
+                    </div>
+                    <span className={`text-xs font-medium hidden sm:block ${
+                      step === s.id ? "text-[#D1D0D0]" : "text-[#988686]"
+                    }`}>{s.label}</span>
+                  </div>
+                  {index < STEP_CONFIG.length - 1 && (
+                    <div className={`flex-1 h-px mx-3 ${step > s.id ? "bg-emerald-200" : "bg-gray-200"}`} />
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Main card */}
+          <div className="bg-[#141111] rounded-2xl border border-[#5C4E4E]/55 shadow-sm">
+            {/* Card header */}
+            <div className="px-8 py-6 border-b border-[#5C4E4E]/40">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 bg-[#D1D0D0] rounded-xl flex items-center justify-center">
+                  <currentStepConfig.icon className="w-5 h-5 text-[#988686]" />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-[#D1D0D0]">{currentStepConfig.title}</h2>
+                  <p className="text-xs text-[#988686]">{currentStepConfig.description}</p>
+                </div>
+              </div>
+              {user?.first_name && step === 1 && (
+                <p className="mt-3 text-sm text-[#D1D0D0]">
+                  Welcome, <strong>{user.first_name}</strong>. Let's get your profile set up.
+                </p>
+              )}
+            </div>
+
+            {/* Form content */}
+            <div className="px-8 py-6 space-y-5">
+              {/* STEP 1 */}
+              {step === 1 && (
+                <>
+                  <div>
+                    <label className="block text-xs font-semibold text-[#D1D0D0] mb-1.5">
+                      Professional title <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.title}
+                      onChange={(e) => handleInputChange("title", e.target.value)}
+                      placeholder="e.g. Senior Software Engineer"
+                      className="w-full rounded-lg border border-[#5C4E4E]/55 px-3.5 py-2.5 text-sm text-[#D1D0D0] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-all"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-[#D1D0D0] mb-1.5">Company</label>
+                      <input
+                        type="text"
+                        value={formData.company}
+                        onChange={(e) => handleInputChange("company", e.target.value)}
+                        placeholder="e.g. Acme Corp"
+                        className="w-full rounded-lg border border-[#5C4E4E]/55 px-3.5 py-2.5 text-sm text-[#D1D0D0] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-all"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-[#D1D0D0] mb-1.5">Location</label>
+                      <input
+                        type="text"
+                        value={formData.location}
+                        onChange={(e) => handleInputChange("location", e.target.value)}
+                        placeholder="e.g. San Francisco, CA"
+                        className="w-full rounded-lg border border-[#5C4E4E]/55 px-3.5 py-2.5 text-sm text-[#D1D0D0] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-all"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-[#D1D0D0] mb-1.5">
+                      Bio <span className="text-red-500">*</span>
+                      <span className="text-[#988686] font-normal ml-1">— tell others about yourself</span>
+                    </label>
+                    <textarea
+                      value={formData.bio}
+                      onChange={(e) => handleInputChange("bio", e.target.value)}
+                      placeholder="A brief description of your background, what you're working on, and what makes you interesting."
+                      rows={4}
+                      className="w-full rounded-lg border border-[#5C4E4E]/55 px-3.5 py-2.5 text-sm text-[#D1D0D0] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-all resize-none"
+                    />
+                  </div>
+                </>
+              )}
+
+              {/* STEP 2 */}
+              {step === 2 && (
+                <>
+                  <div>
+                    <label className="block text-xs font-semibold text-[#D1D0D0] mb-1.5">
+                      Add a skill <span className="text-red-500">*</span>
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={currentSkill}
+                        onChange={(e) => setCurrentSkill(e.target.value)}
+                        placeholder="e.g. React, Product Management, Python"
+                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addSkill(); } }}
+                        className="flex-1 rounded-lg border border-[#5C4E4E]/55 px-3.5 py-2.5 text-sm text-[#D1D0D0] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-all"
+                      />
+                      <button
+                        type="button"
+                        onClick={addSkill}
+                        className="px-4 py-2.5 bg-[#D1D0D0] text-black text-sm font-medium rounded-lg hover:bg-[#e8e7e7] transition-colors"
+                      >
+                        <Plus className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <p className="text-xs text-[#988686] mt-1.5">Press Enter or click + to add</p>
+                  </div>
+                  {skills.length > 0 && (
+                    <div>
+                      <p className="text-xs font-semibold text-[#D1D0D0] mb-2">Your skills ({skills.length})</p>
+                      <div className="flex flex-wrap gap-2">
+                        {skills.map(skill => (
+                          <span key={skill} className="inline-flex items-center gap-1.5 bg-[#D1D0D0] text-black text-xs font-medium px-3 py-1.5 rounded-md border border-[#5C4E4E]/55">
+                            {skill}
+                            <button type="button" onClick={() => setSkills(prev => prev.filter(s => s !== skill))} className="text-black/50 hover:text-red-600 transition-colors">
+                              <X className="w-3 h-3" />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {skills.length === 0 && (
+                    <div className="py-6 border border-dashed border-[#5C4E4E]/55 rounded-lg text-center text-xs text-[#988686]">
+                      No skills added yet. Add at least one to continue.
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* STEP 3 */}
+              {step === 3 && (
+                <>
+                  <div>
+                    <label className="block text-xs font-semibold text-[#D1D0D0] mb-1.5">
+                      Add an interest <span className="text-red-500">*</span>
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={currentInterest}
+                        onChange={(e) => setCurrentInterest(e.target.value)}
+                        placeholder="e.g. AI, Startups, Open Source, Design"
+                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addInterest(); } }}
+                        className="flex-1 rounded-lg border border-[#5C4E4E]/55 px-3.5 py-2.5 text-sm text-[#D1D0D0] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-all"
+                      />
+                      <button
+                        type="button"
+                        onClick={addInterest}
+                        className="px-4 py-2.5 bg-[#D1D0D0] text-black text-sm font-medium rounded-lg hover:bg-[#e8e7e7] transition-colors"
+                      >
+                        <Plus className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <p className="text-xs text-[#988686] mt-1.5">Press Enter or click + to add</p>
+                  </div>
+                  {interests.length > 0 && (
+                    <div>
+                      <p className="text-xs font-semibold text-[#D1D0D0] mb-2">Your interests ({interests.length})</p>
+                      <div className="flex flex-wrap gap-2">
+                        {interests.map(interest => (
+                          <span key={interest} className="inline-flex items-center gap-1.5 bg-[#5C4E4E]/35 text-[#D1D0D0] text-xs font-medium px-3 py-1.5 rounded-md border border-[#5C4E4E]">
+                            {interest}
+                            <button type="button" onClick={() => setInterests(prev => prev.filter(i => i !== interest))} className="text-indigo-400 hover:text-red-500 transition-colors">
+                              <X className="w-3 h-3" />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {interests.length === 0 && (
+                    <div className="py-6 border border-dashed border-[#5C4E4E]/55 rounded-lg text-center text-xs text-[#988686]">
+                      No interests added yet. Add at least one to continue.
+                    </div>
+                  )}
+                  <div>
+                    <label className="block text-xs font-semibold text-[#D1D0D0] mb-1.5">
+                      Career goals <span className="text-[#988686] font-normal">(optional)</span>
+                    </label>
+                    <textarea
+                      value={formData.careerGoals}
+                      onChange={(e) => handleInputChange("careerGoals", e.target.value)}
+                      placeholder="Where are you headed? What do you want to achieve in the next year or two?"
+                      rows={3}
+                      className="w-full rounded-lg border border-[#5C4E4E]/55 px-3.5 py-2.5 text-sm text-[#D1D0D0] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-all resize-none"
+                    />
+                  </div>
+                </>
+              )}
+
+              {/* Error display during save */}
+              {error && saving === false && (
+                <div className="p-3 bg-red-50 border border-red-100 text-red-700 rounded-lg text-sm">
+                  {error}
+                </div>
+              )}
+            </div>
+
+            {/* Navigation footer */}
+            <div className="px-8 py-5 border-t border-[#5C4E4E]/40 flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => setStep(prev => Math.max(1, prev - 1))}
+                disabled={step === 1 || saving}
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-[#988686] border border-[#5C4E4E]/55 rounded-lg hover:bg-black transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <ArrowLeft className="w-4 h-4" /> Back
+              </button>
+
+              <div className="flex items-center gap-2">
+                {STEP_CONFIG.map(s => (
+                  <div
+                    key={s.id}
+                    className={`w-1.5 h-1.5 rounded-full transition-all ${
+                      step === s.id ? "bg-[#D1D0D0] w-4" : step > s.id ? "bg-emerald-400" : "bg-gray-200"
+                    }`}
+                  />
+                ))}
+              </div>
+
+              {step < 3 ? (
+                <button
+                  type="button"
+                  onClick={() => setStep(prev => Math.min(3, prev + 1))}
+                  disabled={saving}
+                  className="inline-flex items-center gap-1.5 px-5 py-2 text-sm font-semibold bg-[#D1D0D0] text-black rounded-lg hover:bg-[#e8e7e7] transition-colors disabled:opacity-60"
+                >
+                  Next <ArrowRight className="w-4 h-4" />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleComplete}
+                  disabled={saving}
+                  className="inline-flex items-center gap-1.5 px-5 py-2 text-sm font-semibold bg-[#5C4E4E] text-[#D1D0D0] rounded-lg hover:bg-[#6a5a5a] transition-colors disabled:opacity-60"
+                >
+                  {saving ? (
+                    <><Loader2 className="w-4 h-4 animate-spin" /> Savingâ€¦</>
+                  ) : (
+                    <><Check className="w-4 h-4" /> Complete setup</>
+                  )}
+                </button>
+              )}
+            </div>
+          </div>
+
+          <p className="text-center text-xs text-[#988686] mt-4">
+            You can edit everything later from your profile settings.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export default ProfileSetup;

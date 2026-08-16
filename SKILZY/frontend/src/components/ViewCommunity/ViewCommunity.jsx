@@ -1,5 +1,4 @@
-import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
+﻿import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Users, 
@@ -22,21 +21,48 @@ const ViewCommunity = ({ community, onClose, isAdmin = false }) => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [communityData, setCommunityData] = useState({
     id: community?.id,
-    name: community?.name || 'Community Name',
-    mission: 'Connecting professionals through meaningful collaboration',
-    focusTags: ['Technology', 'Innovation', 'Networking'],
-    eligibility: 'Open to all professionals',
-    slogan: 'Building the future together',
-    notices: 'Welcome to our community!',
+    name: community?.name || 'Community',
+    mission: community?.description || '',
+    focusTags: community?.domain ? [community.domain] : [],
+    eligibility: 'Open to members',
+    slogan: community?.domain || '',
+    notices: '',
     memberCount: community?.member_count || 0,
-    adminName: community?.admin_name || 'Admin'
+    adminName: community?.admin_name || 'Admin',
+    domain: community?.domain || '',
+    description: community?.description || ''
   });
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  useEffect(() => {
+    const loadCommunity = async () => {
+      if (!community?.id) return;
+      try {
+        const detail = await fetchWithAuth(`/communities/${community.id}`);
+        if (!detail) return;
+        setCommunityData((prev) => ({
+          ...prev,
+          id: detail.id || community.id,
+          name: detail.name || prev.name,
+          mission: detail.description || detail.mission || prev.mission,
+          description: detail.description || prev.description,
+          domain: detail.domain || prev.domain,
+          focusTags: detail.domain ? [detail.domain] : prev.focusTags,
+          memberCount: detail.member_count ?? prev.memberCount,
+          adminName: detail.admin_name || prev.adminName,
+          notices: detail.notices || prev.notices,
+          slogan: detail.slogan || detail.domain || prev.slogan,
+          eligibility: detail.eligibility || prev.eligibility,
+        }));
+      } catch (_) {}
+    };
+    loadCommunity();
+  }, [community?.id]);
+
   const tabs = [
-    { id: 'dashboard', label: 'Dashboard', icon: TrendingUp },
-    { id: 'profile', label: 'Profile', icon: Settings },
+    { id: 'dashboard', label: 'Overview', icon: TrendingUp },
+    { id: 'profile', label: 'About', icon: Settings },
     { id: 'members', label: 'Members', icon: Users },
     { id: 'chat', label: 'Chat', icon: MessageSquare },
     { id: 'store', label: 'Store', icon: Store },
@@ -45,17 +71,17 @@ const ViewCommunity = ({ community, onClose, isAdmin = false }) => {
 
   return (
     <>
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-      <div className="w-full max-w-6xl bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 max-h-[92vh] overflow-hidden flex flex-col shadow-2xl">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 sm:p-4">
+      <div className="w-full max-w-6xl bg-[#141111] rounded-xl border border-[#5C4E4E]/55 max-h-[92vh] overflow-hidden flex flex-col shadow-xl">
         {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-gray-100 dark:border-gray-700/80">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-slate-900 dark:bg-slate-100 rounded-lg flex items-center justify-center text-white dark:text-slate-900 font-bold">
+        <div className="flex items-center justify-between p-4 sm:p-5 border-b border-[#5C4E4E]/40 gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 bg-[#D1D0D0] rounded-lg flex items-center justify-center text-black font-bold shrink-0">
               <Users className="w-5 h-5" />
             </div>
-            <div>
-              <h2 className="text-lg font-bold text-gray-900 dark:text-white leading-tight">{communityData.name}</h2>
-              <p className="text-xs text-gray-500">{communityData.memberCount} members • Admin: {communityData.adminName}</p>
+            <div className="min-w-0">
+              <h2 className="text-lg font-bold text-[#D1D0D0] leading-tight truncate">{communityData.name}</h2>
+              <p className="text-xs text-[#988686] truncate">{communityData.memberCount} members{communityData.domain ? ` Â· ${communityData.domain}` : ''} Â· Admin: {communityData.adminName}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -67,7 +93,7 @@ const ViewCommunity = ({ community, onClose, isAdmin = false }) => {
                 <Trash className="w-3.5 h-3.5" /> Delete
               </button>
             )}
-            <button onClick={onClose} className="px-3 py-1.5 text-xs font-medium border border-gray-300 dark:border-gray-700 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+            <button onClick={onClose} className="px-3 py-1.5 text-xs font-medium border border-[#5C4E4E] rounded-md hover:bg-[#1c1818] transition">
               Close
             </button>
           </div>
@@ -76,12 +102,12 @@ const ViewCommunity = ({ community, onClose, isAdmin = false }) => {
         {/* Navigation Tabs */}
         <div className="flex-1 overflow-hidden flex flex-col">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
-            <TabsList className="w-full justify-start rounded-none border-b border-gray-100 dark:border-gray-700/80 bg-gray-50/50 dark:bg-gray-900/50 px-4 pt-1">
+            <TabsList className="w-full justify-start rounded-none border-b border-[#5C4E4E]/40 bg-black/50 dark:bg-gray-900/50 px-2 sm:px-4 pt-1 overflow-x-auto">
               {tabs.map((tab) => (
                 <TabsTrigger 
                   key={tab.id} 
                   value={tab.id}
-                  className="flex items-center gap-2 text-xs py-2 px-4 rounded-md data-[state=active]:bg-white dark:data-[state=active]:bg-gray-800 data-[state=active]:text-gray-900 dark:data-[state=active]:text-white font-medium"
+                  className="flex items-center gap-2 text-xs py-2 px-3 sm:px-4 rounded-md data-[state=active]:bg-[#141111] dark:data-[state=active]:bg-gray-800 data-[state=active]:text-[#D1D0D0] dark:data-[state=active]:text-white font-medium whitespace-nowrap"
                 >
                   <tab.icon className="w-3.5 h-3.5" />
                   {tab.label}
@@ -90,7 +116,7 @@ const ViewCommunity = ({ community, onClose, isAdmin = false }) => {
             </TabsList>
 
             {/* Tab Contents */}
-            <div className="p-6 overflow-y-auto flex-1">
+            <div className="p-4 sm:p-6 overflow-y-auto flex-1">
               <TabsContent value="dashboard">
                 <WeeklyDashboard communityData={communityData} />
               </TabsContent>
@@ -105,7 +131,7 @@ const ViewCommunity = ({ community, onClose, isAdmin = false }) => {
 
               <TabsContent value="members">
                 <MembersList 
-                  communityId={community?.id}
+                  communityId={communityData.id}
                   isAdmin={isAdmin}
                   onMembersCountChange={(count)=> setCommunityData(prev=>({...prev, memberCount: count}))}
                 />
@@ -113,7 +139,7 @@ const ViewCommunity = ({ community, onClose, isAdmin = false }) => {
 
               <TabsContent value="chat">
                 <ChatSection 
-                  communityId={community?.id}
+                  communityId={communityData.id}
                   isAdmin={isAdmin}
                 />
               </TabsContent>
@@ -125,7 +151,7 @@ const ViewCommunity = ({ community, onClose, isAdmin = false }) => {
               {isAdmin && (
                 <TabsContent value="admin">
                   <AdminPanel 
-                    communityId={community?.id}
+                    communityId={communityData.id}
                     communityData={communityData}
                     setCommunityData={setCommunityData}
                   />
@@ -141,13 +167,13 @@ const ViewCommunity = ({ community, onClose, isAdmin = false }) => {
     {showDeleteModal && (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div className="absolute inset-0 bg-black/40 backdrop-blur-xs" onClick={() => setShowDeleteModal(false)} />
-        <div className="relative bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 w-full max-w-md p-6 shadow-xl space-y-3">
-          <h3 className="text-base font-bold text-gray-900 dark:text-white">Delete Community</h3>
-          <p className="text-xs text-gray-600 dark:text-gray-300">
+        <div className="relative bg-[#141111] rounded-xl border border-[#5C4E4E]/55 w-full max-w-md p-6 shadow-xl space-y-3">
+          <h3 className="text-base font-bold text-[#D1D0D0]">Delete Community</h3>
+          <p className="text-xs text-[#988686]">
             Are you sure you want to delete "{communityData.name}"? This action cannot be undone.
           </p>
           <div className="flex justify-end gap-2 pt-2">
-            <button className="px-3 py-1.5 text-xs font-medium border border-gray-300 rounded-md hover:bg-gray-50" onClick={() => setShowDeleteModal(false)}>Cancel</button>
+            <button className="px-3 py-1.5 text-xs font-medium border border-[#5C4E4E] rounded-md hover:bg-black" onClick={() => setShowDeleteModal(false)}>Cancel</button>
             <button
               className="px-3 py-1.5 text-xs font-semibold bg-red-600 text-white rounded-md hover:bg-red-700"
               disabled={deleting}

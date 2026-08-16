@@ -92,7 +92,7 @@ const WeeklyDashboard = ({ communityData }) => {
     <div className="space-y-6">
       {/* Restrained Uniform Metrics Bar */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="bg-white dark:bg-gray-800/90 border border-gray-200/80 dark:border-gray-700/80 rounded-lg p-4">
+        <div className="bg-white dark:bg-gray-800/90 border border-gray-200/80 border-[#5C4E4E]/45/80 rounded-lg p-4">
           <div className="flex items-center justify-between text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
             <span>Total Points</span>
             <TrendingUp className="w-3.5 h-3.5 text-gray-400" />
@@ -103,7 +103,7 @@ const WeeklyDashboard = ({ communityData }) => {
           <p className="text-[10px] text-gray-400 mt-1">Calculated from activity</p>
         </div>
 
-        <div className="bg-white dark:bg-gray-800/90 border border-gray-200/80 dark:border-gray-700/80 rounded-lg p-4">
+        <div className="bg-white dark:bg-gray-800/90 border border-gray-200/80 border-[#5C4E4E]/45/80 rounded-lg p-4">
           <div className="flex items-center justify-between text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
             <span>Members</span>
             <Users className="w-3.5 h-3.5 text-gray-400" />
@@ -114,7 +114,7 @@ const WeeklyDashboard = ({ communityData }) => {
           <p className="text-[10px] text-gray-400 mt-1">Active community members</p>
         </div>
 
-        <div className="bg-white dark:bg-gray-800/90 border border-gray-200/80 dark:border-gray-700/80 rounded-lg p-4">
+        <div className="bg-white dark:bg-gray-800/90 border border-gray-200/80 border-[#5C4E4E]/45/80 rounded-lg p-4">
           <div className="flex items-center justify-between text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
             <span>Discussions</span>
             <Activity className="w-3.5 h-3.5 text-gray-400" />
@@ -125,7 +125,7 @@ const WeeklyDashboard = ({ communityData }) => {
           <p className="text-[10px] text-gray-400 mt-1">Messages sent</p>
         </div>
 
-        <div className="bg-white dark:bg-gray-800/90 border border-gray-200/80 dark:border-gray-700/80 rounded-lg p-4">
+        <div className="bg-white dark:bg-gray-800/90 border border-gray-200/80 border-[#5C4E4E]/45/80 rounded-lg p-4">
           <div className="flex items-center justify-between text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
             <span>Events</span>
             <Award className="w-3.5 h-3.5 text-gray-400" />
@@ -138,7 +138,7 @@ const WeeklyDashboard = ({ communityData }) => {
       </div>
 
       {/* Weekly Activity Breakdown */}
-      <div className="bg-white dark:bg-gray-800/90 border border-gray-200/80 dark:border-gray-700/80 rounded-lg p-5">
+      <div className="bg-white dark:bg-gray-800/90 border border-gray-200/80 border-[#5C4E4E]/45/80 rounded-lg p-5">
         <div className="mb-4">
           <h3 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
             <Target className="w-4 h-4 text-gray-500" /> Weekly Activity Overview
@@ -147,7 +147,7 @@ const WeeklyDashboard = ({ communityData }) => {
         </div>
         <div className="grid grid-cols-7 gap-2">
           {dashboardData.weeklyActivity.map((day, index) => (
-            <div key={index} className="text-center p-2 rounded bg-gray-50 dark:bg-gray-900/60 border border-gray-100 dark:border-gray-800">
+            <div key={index} className="text-center p-2 rounded bg-gray-50 dark:bg-gray-900/60 border border-gray-100 border-[#5C4E4E]/40">
               <div className="text-[11px] font-semibold text-gray-500 mb-1">{day.day}</div>
               <div className="text-base font-bold text-gray-900 dark:text-white font-mono">{day.activities}</div>
               <div className="text-[10px] text-gray-400">msgs</div>
@@ -157,7 +157,7 @@ const WeeklyDashboard = ({ communityData }) => {
       </div>
 
       {/* Member Leaderboard */}
-      <div className="bg-white dark:bg-gray-800/90 border border-gray-200/80 dark:border-gray-700/80 rounded-lg p-5">
+      <div className="bg-white dark:bg-gray-800/90 border border-gray-200/80 border-[#5C4E4E]/45/80 rounded-lg p-5">
         <div className="mb-3 flex items-center justify-between">
           <div>
             <h3 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
@@ -180,7 +180,7 @@ const WeeklyDashboard = ({ communityData }) => {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-xs font-mono font-semibold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded">
+                <span className="text-xs font-mono font-semibold text-gray-700 dark:text-gray-300 bg-[#5C4E4E]/35 dark:bg-gray-700 px-2 py-0.5 rounded">
                   {member.points.toLocaleString()} pts
                 </span>
                 {index < 3 && <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />}

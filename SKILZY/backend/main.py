@@ -1236,3 +1236,314 @@ async def push_notification(email: str, message: str):
     ws = active_connections.get(email)
     if ws:
         await ws.send_json({"message": message})
+
+
+# --------------------------
+# Community Events (scoped)
+# --------------------------
+
+@app.get("/communities/{community_id}/events")
+async def get_community_events(community_id: str, current_user: dict = Depends(auth.get_current_user)):
+    """List events that belong to a specific community."""
+    try:
+        ObjectId(community_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid community_id")
+    cursor = database["events"].find({"community_id": community_id})
+    items = await cursor.to_list(length=200)
+    results = []
+    for i in items:
+        attendees = i.get("attendees", [])
+        if not isinstance(attendees, list):
+            attendees = []
+        results.append({
+            "id": str(i.get("_id") or ObjectId()),
+            "community_id": i.get("community_id"),
+            "title": i.get("title", "Untitled Event"),
+            "description": i.get("description", ""),
+            "date": i.get("date"),
+            "time": i.get("time"),
+            "location": i.get("location", "Online"),
+            "attendees_count": len(attendees),
+            "is_attending": current_user["email"] in attendees,
+            "status": "upcoming"
+        })
+    return results
+
+
+@app.post("/communities/{community_id}/events")
+async def create_community_event(community_id: str, payload: dict, current_user: dict = Depends(auth.get_current_user)):
+    """Create an event scoped to a community. Admin or any member can create."""
+    try:
+        oid = ObjectId(community_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid community_id")
+    community = await database["communities"].find_one({"_id": oid})
+    if not community or current_user["email"] not in community.get("members", []):
+        raise HTTPException(status_code=403, detail="Not a member of this community")
+    title = payload.get("title")
+    if not title:
+        raise HTTPException(status_code=422, detail="Title is required")
+
+    # Accept both ISO start_time or separate date+time fields
+    start_time = payload.get("start_time")
+    date_val = payload.get("date")
+    time_val = payload.get("time")
+    if start_time and not date_val:
+        # Extract date and time from ISO string
+        try:
+            dt = datetime.fromisoformat(start_time.replace("Z", ""))
+            date_val = dt.strftime("%Y-%m-%d")
+            time_val = dt.strftime("%H:%M")
+        except Exception:
+            pass
+
+    doc = {
+        "community_id": community_id,
+        "title": title,
+        "description": payload.get("description", ""),
+        "location": payload.get("location", "Online"),
+        "date": date_val,
+        "time": time_val,
+        "start_time": start_time,
+        "creator_email": current_user["email"],
+        "attendees": [current_user["email"]],
+        "created_at": datetime.now()
+    }
+    res = await database["events"].insert_one(doc)
+    return {"id": str(res.inserted_id), "status": "ok", **{k: v for k, v in doc.items() if k not in ("_id", "created_at")}}
+
+
+# --------------------------
+# Community Announcements
+# --------------------------
+
+@app.get("/communities/{community_id}/announcements")
+async def get_community_announcements(community_id: str, current_user: dict = Depends(auth.get_current_user)):
+    try:
+        ObjectId(community_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid community_id")
+    cursor = database["announcements"].find({"community_id": community_id}).sort("created_at", -1)
+    items = await cursor.to_list(length=100)
+    return [{
+        "id": str(i.get("_id")),
+        "community_id": i.get("community_id"),
+        "title": i.get("title", "Announcement"),
+        "content": i.get("content", ""),
+        "created_at": i.get("created_at", datetime.now()).isoformat() if isinstance(i.get("created_at"), datetime) else str(i.get("created_at", ""))
+    } for i in items]
+
+
+@app.post("/communities/{community_id}/announcements")
+async def create_community_announcement(community_id: str, payload: dict, current_user: dict = Depends(auth.get_current_user)):
+    try:
+        oid = ObjectId(community_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid community_id")
+    community = await database["communities"].find_one({"_id": oid})
+    if not community or current_user["email"] != community.get("admin_email"):
+        raise HTTPException(status_code=403, detail="Only community admin can post announcements")
+    content = payload.get("content") or payload.get("announcement") or payload.get("message", "")
+    if not content:
+        raise HTTPException(status_code=422, detail="Content is required")
+    doc = {
+        "community_id": community_id,
+        "title": payload.get("title", "Announcement"),
+        "content": content,
+        "author_email": current_user["email"],
+        "created_at": datetime.now()
+    }
+    res = await database["announcements"].insert_one(doc)
+    return {
+        "id": str(res.inserted_id),
+        "community_id": community_id,
+        "title": doc["title"],
+        "content": doc["content"],
+        "created_at": doc["created_at"].isoformat()
+    }
+
+
+# --------------------------
+# Community Member Remove (Admin)
+# --------------------------
+
+@app.delete("/communities/{community_id}/members/{member_email_or_id}")
+async def remove_community_member(community_id: str, member_email_or_id: str, current_user: dict = Depends(auth.get_current_user)):
+    try:
+        oid = ObjectId(community_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid community_id")
+    community = await database["communities"].find_one({"_id": oid})
+    if not community:
+        raise HTTPException(status_code=404, detail="Community not found")
+    if current_user["email"] != community.get("admin_email"):
+        raise HTTPException(status_code=403, detail="Only community admin can remove members")
+    # Try to resolve the identifier to an email
+    target_email = member_email_or_id
+    if "@" not in member_email_or_id:
+        # Might be an ObjectId string — look up the user
+        try:
+            user_doc = await database["users"].find_one({"_id": ObjectId(member_email_or_id)})
+            if user_doc:
+                target_email = user_doc["email"]
+        except Exception:
+            pass
+    if target_email == current_user["email"]:
+        raise HTTPException(status_code=400, detail="Admin cannot remove themselves")
+    await database["communities"].update_one({"_id": oid}, {"$pull": {"members": target_email}})
+    return {"status": "ok"}
+
+
+# --------------------------
+# Store endpoints (dynamic)
+# --------------------------
+
+@app.get("/store/items")
+async def list_store_items(current_user: dict = Depends(auth.get_current_user)):
+    """Return all store items with purchase state for current user."""
+    cursor = database["store_items"].find({})
+    items = await cursor.to_list(length=200)
+    if not items:
+        # Return default catalog items (seeded on first call)
+        default_items = [
+            {"name": "Professional Badge", "description": "Show off your expertise with a verified professional badge", "price": 200, "category": "badge", "rarity": "common", "available": True},
+            {"name": "Gold Badge", "description": "Exclusive gold achievement badge for top contributors", "price": 500, "category": "badge", "rarity": "rare", "available": True},
+            {"name": "Premium Crown", "description": "Royal crown for recognized community leaders", "price": 800, "category": "accessory", "rarity": "epic", "available": True},
+            {"name": "Spotlight Feature", "description": "Get featured in community discover results for 7 days", "price": 300, "category": "feature", "rarity": "uncommon", "available": True},
+            {"name": "Custom Title", "description": "Set a custom title that appears on your profile card", "price": 150, "category": "title", "rarity": "common", "available": True},
+            {"name": "Diamond Frame", "description": "Elegant diamond border for your profile avatar", "price": 600, "category": "frame", "rarity": "rare", "available": False},
+        ]
+        for item in default_items:
+            item["created_at"] = datetime.now()
+        result = await database["store_items"].insert_many(default_items)
+        items = await database["store_items"].find({}).to_list(length=200)
+
+    # Fetch this user's purchases
+    purchases = await database["store_purchases"].find({"user": current_user["email"]}).to_list(length=1000)
+    purchased_ids = {str(p["item_id"]) for p in purchases}
+
+    return [{
+        "id": str(i["_id"]),
+        "name": i.get("name", ""),
+        "description": i.get("description", ""),
+        "price": i.get("price", 0),
+        "category": i.get("category", "general"),
+        "rarity": i.get("rarity", "common"),
+        "available": bool(i.get("available", True)),
+        "is_owned": str(i["_id"]) in purchased_ids
+    } for i in items]
+
+
+@app.get("/store/credits")
+async def get_user_credits(current_user: dict = Depends(auth.get_current_user)):
+    """Return user's current credit balance, calculated from real activity."""
+    user_email = current_user["email"]
+    msg_count = await database["messages"].count_documents({"sender": user_email})
+    events_count = await database["events"].count_documents({"attendees": user_email})
+    challenges_count = await database["challenges"].count_documents({"participants": user_email})
+    connections_count = await database["connections"].count_documents({
+        "$or": [{"from": user_email}, {"to": user_email}],
+        "status": "accepted"
+    })
+    # Spent credits from purchases
+    purchases = await database["store_purchases"].find({"user": user_email}).to_list(length=1000)
+    spent = 0
+    for p in purchases:
+        item = await database["store_items"].find_one({"_id": ObjectId(p["item_id"])}) if p.get("item_id") else None
+        if item:
+            spent += item.get("price", 0)
+    earned = (msg_count * 10) + (events_count * 25) + (challenges_count * 50) + (connections_count * 20) + 100  # base 100
+    return {"credits": max(0, earned - spent), "earned": earned, "spent": spent}
+
+
+@app.post("/store/purchase/{item_id}")
+async def purchase_store_item(item_id: str, current_user: dict = Depends(auth.get_current_user)):
+    """Purchase a store item using community credits."""
+    try:
+        oid = ObjectId(item_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid item_id")
+    item = await database["store_items"].find_one({"_id": oid})
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+    if not item.get("available", True):
+        raise HTTPException(status_code=400, detail="Item is not available")
+    # Check if already owned
+    existing = await database["store_purchases"].find_one({"user": current_user["email"], "item_id": item_id})
+    if existing:
+        raise HTTPException(status_code=400, detail="You already own this item")
+    # Check credits
+    credits_data = await get_user_credits(current_user)
+    if credits_data["credits"] < item.get("price", 0):
+        raise HTTPException(status_code=400, detail="Insufficient credits")
+    # Record purchase
+    await database["store_purchases"].insert_one({
+        "user": current_user["email"],
+        "item_id": item_id,
+        "item_name": item.get("name"),
+        "price": item.get("price", 0),
+        "purchased_at": datetime.now()
+    })
+    return {"status": "ok", "message": f"Successfully purchased {item.get('name')}"}
+
+
+# --------------------------
+# Delete community (admin only)
+# --------------------------
+
+@app.delete("/communities/{community_id}")
+async def delete_community(community_id: str, current_user: dict = Depends(auth.get_current_user)):
+    try:
+        oid = ObjectId(community_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid community_id")
+    community = await database["communities"].find_one({"_id": oid})
+    if not community:
+        raise HTTPException(status_code=404, detail="Community not found")
+    if current_user["email"] != community.get("admin_email"):
+        raise HTTPException(status_code=403, detail="Only the community admin can delete it")
+    await database["communities"].delete_one({"_id": oid})
+    # Optionally clean up related data
+    await database["messages"].delete_many({"community_id": community_id})
+    await database["announcements"].delete_many({"community_id": community_id})
+    return {"status": "ok"}
+
+
+# --------------------------
+# User public profile
+# --------------------------
+
+@app.get("/users/{user_id}/profile")
+async def get_user_public_profile(user_id: str, current_user: dict = Depends(auth.get_current_user)):
+    """Get a public profile by user ID or email."""
+    user = None
+    # Try ObjectId first
+    try:
+        user = await database["users"].find_one({"_id": ObjectId(user_id)})
+    except Exception:
+        pass
+    # Try email
+    if not user:
+        user = await database["users"].find_one({"email": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    fname = user.get("first_name", "") or ""
+    lname = user.get("last_name", "") or ""
+    return {
+        "id": str(user["_id"]),
+        "email": user["email"],
+        "name": f"{fname} {lname}".strip() or user["email"],
+        "first_name": fname,
+        "last_name": lname,
+        "title": user.get("title", ""),
+        "company": user.get("company", ""),
+        "location": user.get("location", ""),
+        "bio": user.get("bio", ""),
+        "skills": user.get("skills", []),
+        "interests": user.get("interests", []),
+        "careerGoals": user.get("careerGoals", ""),
+        "avatar_url": user.get("avatar_url"),
+        "avatar": f"{(fname or 'U')[0]}{(lname or 'U')[0]}".upper(),
+        "profile_complete": bool(user.get("profile_complete"))
+    }

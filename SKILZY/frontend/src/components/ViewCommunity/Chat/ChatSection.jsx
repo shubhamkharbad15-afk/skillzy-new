@@ -132,11 +132,11 @@ const ChatSection = ({ communityId, isAdmin }) => {
   };
 
   return (
-    <div className="flex flex-col h-[550px] bg-white dark:bg-gray-800 rounded-lg border border-gray-200/80 dark:border-gray-700/80">
+    <div className="flex flex-col h-[550px] bg-white dark:bg-gray-800 rounded-lg border border-gray-200/80 border-[#5C4E4E]/45/80">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700/80">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 border-[#5C4E4E]/45/80">
         <div className="flex items-center space-x-2">
-          <MessageSquare className="w-4 h-4 text-slate-700 dark:text-slate-300" />
+          <MessageSquare className="w-4 h-4 text-slate-700 dark:text-[#988686]" />
           <h3 className="font-semibold text-xs text-gray-900 dark:text-white">Community Chat</h3>
         </div>
         <button onClick={loadMessages} className="text-gray-500 hover:text-gray-900 dark:hover:text-white transition p-1">
@@ -156,7 +156,7 @@ const ChatSection = ({ communityId, isAdmin }) => {
           
           return (
             <div key={msg.id} className={`flex gap-2.5 ${isCurrentUser ? 'flex-row-reverse' : ''}`}>
-              <Avatar className="w-7 h-7 border border-gray-200 dark:border-gray-700 shrink-0 mt-0.5">
+              <Avatar className="w-7 h-7 border border-gray-200 border-[#5C4E4E]/45 shrink-0 mt-0.5">
                 <AvatarFallback className="bg-slate-200 dark:bg-gray-700 text-slate-800 dark:text-gray-200 text-[10px] font-bold">
                   {initials}
                 </AvatarFallback>
@@ -169,8 +169,8 @@ const ChatSection = ({ communityId, isAdmin }) => {
                 </div>
                 <div className={`p-2.5 rounded-lg text-xs leading-relaxed ${
                   isCurrentUser 
-                    ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900' 
-                    : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100'
+                    ? 'bg-slate-900 text-white dark:bg-[#D1D0D0] dark:text-slate-900' 
+                    : 'bg-[#5C4E4E]/35 dark:bg-gray-700 text-gray-900 dark:text-gray-100'
                 }`}>
                   {maskAbusiveWords(msg.message)}
                 </div>
@@ -187,7 +187,7 @@ const ChatSection = ({ communityId, isAdmin }) => {
       </div>
 
       {/* Input */}
-      <div className="border-t border-gray-100 dark:border-gray-700/80 p-3 bg-gray-50/50 dark:bg-gray-900/50">
+      <div className="border-t border-gray-100 border-[#5C4E4E]/45/80 p-3 bg-gray-50/50 dark:bg-gray-900/50">
         <form onSubmit={handleSendMessage} className="flex gap-2">
           <input
             ref={inputRef}

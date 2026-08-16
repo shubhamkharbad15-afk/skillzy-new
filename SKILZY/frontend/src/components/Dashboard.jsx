@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,22 +14,21 @@ import {
   Settings, 
   Target,
   TrendingUp,
-  Award,
   MapPin,
   Loader2,
-  BellRing,
   Shield,
   Check,
   X,
   UserCheck,
   UserPlus,
   Clock,
-  ArrowUpRight
+  Menu
 } from "lucide-react";
 import { User as UserIcon } from "lucide-react";
 
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState("dashboard");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isFinding, setIsFinding] = useState(false);
   const [matchError, setMatchError] = useState("");
   const [matches, setMatches] = useState([]);
@@ -79,11 +78,18 @@ const Dashboard = () => {
   const [profileMessage, setProfileMessage] = useState("");
   const [selectedUserModal, setSelectedUserModal] = useState(null);
 
+  // Tag-pill state for profile editing (replaces comma-string inputs)
+  const [skillTags, setSkillTags] = useState([]);
+  const [interestTags, setInterestTags] = useState([]);
+  const [currentSkillInput, setCurrentSkillInput] = useState('');
+  const [currentInterestInput, setCurrentInterestInput] = useState('');
+
   const [showCreateCommunity, setShowCreateCommunity] = useState(false);
   const [selectedCommunity, setSelectedCommunity] = useState(null);
   const [communities, setCommunities] = useState([]);
   const [allCommunities, setAllCommunities] = useState([]);
   const [showJoinCommunity, setShowJoinCommunity] = useState(false);
+  const [communitySearch, setCommunitySearch] = useState("");
   
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminChallengeForm, setAdminChallengeForm] = useState({ title: "", description: "", difficulty: "Medium", points: 150 });
@@ -204,6 +210,7 @@ const Dashboard = () => {
       loadCommunities();
       loadEvents();
       loadChallenges();
+      handleFindMatch();
     } else if (activeTab === "communities") {
       loadCommunities();
       loadAllCommunities();
@@ -281,16 +288,20 @@ const Dashboard = () => {
       setProfile(res);
       
       const savedAvatar = sessionStorage.getItem(`avatar_${email}`);
+      const skillsArr = Array.isArray(res?.skills) ? res.skills : [];
+      const interestsArr = Array.isArray(res?.interests) ? res.interests : [];
       setProfileForm({
         title: res?.title || '',
         company: res?.company || '',
         location: res?.location || '',
         bio: res?.bio || '',
         careerGoals: res?.careerGoals || '',
-        skills: Array.isArray(res?.skills) ? res.skills.join(', ') : '',
-        interests: Array.isArray(res?.interests) ? res.interests.join(', ') : '',
+        skills: skillsArr.join(', '),
+        interests: interestsArr.join(', '),
         avatar_url: savedAvatar || res?.avatar_url || '',
       });
+      setSkillTags(skillsArr);
+      setInterestTags(interestsArr);
       sessionStorage.setItem('userName', name);
       
       const adminCheck = await fetchWithAuth('/auth/is-admin');
@@ -312,8 +323,8 @@ const Dashboard = () => {
         location: profileForm.location || '',
         bio: profileForm.bio || '',
         careerGoals: profileForm.careerGoals || '',
-        skills: (profileForm.skills || '').split(',').map(s => s.trim()).filter(Boolean),
-        interests: (profileForm.interests || '').split(',').map(s => s.trim()).filter(Boolean),
+        skills: skillTags,
+        interests: interestTags,
         avatar_url: profileForm.avatar_url || undefined,
       };
       const updated = await fetchWithAuth('/users/me/profile', { method: 'POST', body: JSON.stringify(payload) });
@@ -329,7 +340,7 @@ const Dashboard = () => {
     }
   };
 
-  const handleFindMatch = async () => {
+  const handleFindMatch = async (skillOverride) => {
     setIsFinding(true);
     setMatchError("");
     try {
@@ -339,9 +350,10 @@ const Dashboard = () => {
       }
       const res = await fetchWithAuth(url);
       let results = Array.isArray(res) ? res : [];
+      const filter = skillOverride !== undefined ? skillOverride : selectedSkillFilter;
       
-      if (selectedSkillFilter) {
-        results = results.filter(r => (r.skills || []).some(s => s.toLowerCase().includes(selectedSkillFilter.toLowerCase())));
+      if (filter) {
+        results = results.filter(r => (r.skills || []).some(s => s.toLowerCase().includes(String(filter).toLowerCase())));
       }
       
       setMatches(results);
@@ -384,14 +396,7 @@ const Dashboard = () => {
     setChallengesError("");
     try {
       const res = await fetchWithAuth("/challenges");
-      let items = Array.isArray(res) ? res : [];
-      if (items.length === 0) {
-        try {
-          await fetchWithAuth("/seed/challenges", { method: "POST" });
-          const res2 = await fetchWithAuth("/challenges");
-          items = Array.isArray(res2) ? res2 : [];
-        } catch {}
-      }
+      const items = Array.isArray(res) ? res : [];
       setChallenges(items);
     } catch (err) {
       setChallengesError("Failed to load challenges.");
@@ -623,90 +628,144 @@ const Dashboard = () => {
   };
 
   const unreadNotifCount = notificationsData.filter(n => !n.read).length;
+  const incomingRequests = requests.filter(r => r.direction === 'incoming' || !r.direction);
+  const skillFilterOptions = [...new Set([
+    ...(Array.isArray(profile?.skills) ? profile.skills : []),
+    ...matches.flatMap((m) => (Array.isArray(m.skills) ? m.skills : [])),
+  ])].slice(0, 16);
+  const filteredCommunities = communities.filter((c) => {
+    const q = communitySearch.trim().toLowerCase();
+    if (!q) return true;
+    return [c.name, c.domain, c.description].filter(Boolean).some((v) => String(v).toLowerCase().includes(q));
+  });
+  const filteredAllCommunities = allCommunities.filter((c) => {
+    const q = communitySearch.trim().toLowerCase();
+    if (!q) return true;
+    return [c.name, c.domain, c.description].filter(Boolean).some((v) => String(v).toLowerCase().includes(q));
+  });
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 font-sans antialiased">
+    <div className="min-h-screen bg-black text-[#D1D0D0] font-sans antialiased">
+      {/* Mobile sidebar overlay */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/40 z-30 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Clean Editorial Header */}
-      <header className="border-b border-gray-200/80 dark:border-gray-800 bg-white dark:bg-gray-900 sticky top-0 z-40">
-        <div className="flex items-center justify-between px-6 py-3 max-w-7xl mx-auto">
+      <header className="border-b border-[#5C4E4E]/55 bg-black/90 backdrop-blur-sm sticky top-0 z-40">
+        <div className="flex items-center justify-between px-4 md:px-6 py-3 max-w-7xl mx-auto">
           <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-slate-900 dark:bg-slate-100 rounded-lg flex items-center justify-center text-white dark:text-slate-900 font-black text-sm">
+            {/* Mobile hamburger */}
+            <button
+              className="md:hidden p-1.5 -ml-1.5 text-[#988686] hover:text-[#D1D0D0] transition-colors"
+              onClick={() => setSidebarOpen(v => !v)}
+              aria-label="Open navigation"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+            <div className="w-8 h-8 bg-[#D1D0D0] rounded-lg flex items-center justify-center text-black font-black text-sm">
               S
             </div>
-            <span className="text-lg font-bold tracking-tight text-slate-900 dark:text-white">Skillzy</span>
+            <span className="text-lg font-bold tracking-tight text-black dark:text-white">Skillzy</span>
           </div>
           
-          <div className="flex items-center space-x-6">
-            <div className="hidden md:flex items-center space-x-4 text-xs text-gray-600 dark:text-gray-400 font-medium">
-              <span>Connections: <strong className="text-gray-900 dark:text-white">{networkSummary.connections}</strong></span>
-              <span className="text-gray-300 dark:text-gray-700">•</span>
-              <span>Communities: <strong className="text-gray-900 dark:text-white">{networkSummary.communities}</strong></span>
-              <span className="text-gray-300 dark:text-gray-700">•</span>
-              <span>Events: <strong className="text-gray-900 dark:text-white">{networkSummary.eventsAttended}</strong></span>
+          <div className="flex items-center space-x-4 md:space-x-6">
+            <div className="hidden lg:flex items-center space-x-4 text-xs text-[#988686] font-medium">
+              <span>Connections: <strong className="text-[#D1D0D0]">{networkSummary.connections}</strong></span>
+              <span className="text-gray-300 dark:text-[#D1D0D0]">Â·</span>
+              <span>Communities: <strong className="text-[#D1D0D0]">{networkSummary.communities}</strong></span>
+              <span className="text-gray-300 dark:text-[#D1D0D0]">Â·</span>
+              <span>Events: <strong className="text-[#D1D0D0]">{networkSummary.eventsAttended}</strong></span>
             </div>
             
             <button 
               onClick={() => setActiveTab('notifications')}
-              className="relative p-2 text-gray-500 hover:text-gray-900 dark:hover:text-gray-100 transition"
-              title="Notifications"
+              className="relative p-2 text-[#988686] hover:text-[#D1D0D0] dark:hover:text-gray-100 transition"
+              aria-label="Notifications"
             >
               <Bell className="w-4 h-4" />
               {unreadNotifCount > 0 && (
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-indigo-600 rounded-full" />
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#5C4E4E] rounded-full" />
               )}
             </button>
 
-            <div className="flex items-center gap-3 pl-4 border-l border-gray-200 dark:border-gray-800">
-              <Avatar className="w-8 h-8 border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center gap-2.5 pl-4 border-l border-[#5C4E4E]/55">
+              <Avatar className="w-8 h-8 border border-[#5C4E4E]/55 cursor-pointer" onClick={() => setActiveTab('profile')}>
                 {profileForm.avatar_url ? (<AvatarImage src={profileForm.avatar_url} />) : (
-                  <AvatarFallback className="bg-slate-200 dark:bg-gray-700 text-slate-800 dark:text-gray-200 text-xs font-semibold">
+                  <AvatarFallback className="bg-[#5C4E4E]/40 bg-[#5C4E4E]/50 text-[#D1D0D0] text-[#D1D0D0] text-xs font-semibold">
                     {displayName.slice(0, 2).toUpperCase()}
                   </AvatarFallback>
                 )}
               </Avatar>
               <div className="hidden sm:block text-left">
-                <p className="text-xs font-semibold text-gray-900 dark:text-gray-100 leading-none">{displayName}</p>
-                <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">{userEmail}</p>
+                <p className="text-xs font-semibold text-[#D1D0D0] leading-none">{displayName}</p>
+                <p className="text-[11px] text-[#988686] mt-0.5 truncate max-w-[120px]">{userEmail}</p>
               </div>
               <button 
-                onClick={() => { localStorage.removeItem('authToken'); window.location.href = '/login'; }}
-                className="px-2.5 py-1 text-xs font-medium text-gray-600 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400 transition"
+                onClick={() => { localStorage.removeItem('authToken'); sessionStorage.removeItem('authToken'); window.location.href = '/login'; }}
+                className="hidden sm:block px-2.5 py-1 text-xs font-medium text-[#988686] hover:text-red-600 dark:text-[#988686] dark:hover:text-red-400 transition"
               >
-                Sign Out
+                Sign out
               </button>
             </div>
           </div>
         </div>
       </header>
 
-      <div className="flex max-w-7xl mx-auto">
-        {/* Clean Sidebar Navigation */}
-        <aside className="w-56 border-r border-gray-200/80 dark:border-gray-800/80 bg-white dark:bg-gray-900 min-h-[calc(100vh-57px)] p-3">
+      <div className="flex max-w-7xl mx-auto relative">
+        {/* Sidebar — responsive: hidden on mobile, shown as overlay; always visible md+ */}
+        <aside className={`
+          fixed md:static top-0 left-0 h-full md:h-auto z-30 md:z-auto
+          w-60 md:w-56
+          border-r border-[#5C4E4E]/55
+          bg-[#0a0909]
+          md:min-h-[calc(100vh-57px)]
+          p-3
+          transform transition-transform duration-200 ease-in-out
+          ${sidebarOpen ? 'translate-x-0 shadow-xl' : '-translate-x-full md:translate-x-0'}
+          pt-16 md:pt-3
+        `}>
+          {/* Mobile close + sign out */}
+          <div className="md:hidden flex items-center justify-between mb-3 px-1">
+            <button
+              className="p-1 text-[#988686] hover:text-[#D1D0D0]"
+              onClick={() => setSidebarOpen(false)}
+              aria-label="Close navigation"
+            >
+              <X className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => { localStorage.removeItem('authToken'); sessionStorage.removeItem('authToken'); window.location.href = '/login'; }}
+              className="px-2.5 py-1 text-xs font-medium text-red-600"
+            >
+              Sign out
+            </button>
+          </div>
+
           <nav className="space-y-0.5">
             {sidebarItems.map((item) => {
               const isActive = activeTab === item.id;
               return (
                 <button
                   key={item.id}
-                  onClick={() => setActiveTab(item.id)}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-left text-xs transition-colors ${
-                    isActive
-                      ? "bg-slate-100 dark:bg-gray-800 text-slate-900 dark:text-white font-semibold border-l-2 border-slate-900 dark:border-slate-100"
-                      : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/60 font-medium"
-                  }`}
+                  onClick={() => { setActiveTab(item.id); setSidebarOpen(false); }}
+                  className={isActive ? 'nav-item-active w-full' : 'nav-item w-full'}
                 >
                   <div className="flex items-center space-x-2.5">
-                    <item.icon className={`w-4 h-4 ${isActive ? 'text-slate-900 dark:text-slate-100' : 'text-gray-400'}`} />
+                    <item.icon className={`w-4 h-4 ${isActive ? 'text-black dark:text-[#D1D0D0]' : 'text-[#988686]'}`} />
                     <span>{item.label}</span>
                   </div>
                   {item.id === "notifications" && unreadNotifCount > 0 && (
-                    <span className="bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 text-[10px] font-bold px-1.5 py-0.2 rounded">
+                    <span className="bg-[#5C4E4E]/45 text-[#D1D0D0] dark:bg-[#5C4E4E]/45 text-[#D1D0D0] text-[10px] font-bold px-1.5 py-0.5 rounded">
                       {unreadNotifCount}
                     </span>
                   )}
-                  {item.id === "connections" && requests.length > 0 && (
-                    <span className="bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 text-[10px] font-bold px-1.5 py-0.2 rounded">
-                      {requests.length}
+                  {item.id === "connections" && requests.filter(r => r.direction === 'incoming' || !r.direction).length > 0 && (
+                    <span className="bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 text-[10px] font-bold px-1.5 py-0.5 rounded">
+                      {requests.filter(r => r.direction === 'incoming' || !r.direction).length}
                     </span>
                   )}
                 </button>
@@ -721,31 +780,31 @@ const Dashboard = () => {
           {activeTab === "dashboard" && (
             <div className="space-y-8">
               {/* Editorial Welcome Section */}
-              <div className="bg-slate-900 dark:bg-gray-800 text-white rounded-lg p-6 md:p-8 border border-slate-800 dark:border-gray-700">
+              <div className="bg-[#141111] text-[#D1D0D0] rounded-lg p-6 md:p-8 border border-[#5C4E4E]/55 border-[#5C4E4E]/45">
                 <div className="max-w-3xl">
-                  <span className="text-[11px] font-mono tracking-wider uppercase text-slate-400 mb-2 block">
+                  <span className="text-[11px] font-mono tracking-wider uppercase text-[#988686] mb-2 block">
                     Skillzy Workspace
                   </span>
                   <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight mb-2">
                     Welcome back, {displayName}.
                   </h1>
-                  <p className="text-slate-300 text-xs md:text-sm leading-relaxed mb-6">
+                  <p className="text-[#988686] text-xs md:text-sm leading-relaxed mb-6">
                     Connect with peer engineers, tackle active challenges, and collaborate within skill-focused communities.
                   </p>
                   
                   {/* Subtle Profile Completion Bar */}
-                  <div className="bg-slate-800/80 dark:bg-gray-900/80 border border-slate-700/80 dark:border-gray-700 rounded-lg p-3.5 flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div className="bg-[#0a0909]/90 border border-[#5C4E4E]/80 border-[#5C4E4E]/45 rounded-lg p-3.5 flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div className="flex-1 w-full">
-                      <div className="flex justify-between text-xs font-medium text-slate-300 mb-1.5">
+                      <div className="flex justify-between text-xs font-medium text-[#988686] mb-1.5">
                         <span>Profile Completion</span>
                         <span className="font-mono">{calculateProfileCompletion()}%</span>
                       </div>
-                      <div className="w-full bg-slate-700 dark:bg-gray-800 rounded-full h-1.5">
-                        <div className="bg-slate-100 h-1.5 rounded-full transition-all duration-300" style={{ width: `${calculateProfileCompletion()}%` }} />
+                      <div className="w-full bg-[#5C4E4E]/50 rounded-full h-1.5">
+                        <div className="bg-[#D1D0D0] h-1.5 rounded-full transition-all duration-300" style={{ width: `${calculateProfileCompletion()}%` }} />
                       </div>
                     </div>
                     {calculateProfileCompletion() < 100 && (
-                      <button onClick={() => setActiveTab('profile')} className="px-3 py-1.5 text-xs font-semibold bg-white text-slate-900 hover:bg-slate-100 rounded-md transition shrink-0">
+                      <button onClick={() => setActiveTab('profile')} className="px-3 py-1.5 text-xs font-semibold bg-[#D1D0D0] text-black hover:bg-[#e8e7e7] rounded-md transition shrink-0">
                         Complete Profile
                       </button>
                     )}
@@ -755,7 +814,7 @@ const Dashboard = () => {
 
               {/* Quick Actions Grid - Restrained Minimal Cards */}
               <div>
-                <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
+                <h3 className="text-xs font-bold text-[#988686] uppercase tracking-wider mb-3">
                   Quick Navigation
                 </h3>
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
@@ -763,12 +822,12 @@ const Dashboard = () => {
                     <button
                       key={item.id}
                       onClick={() => setActiveTab(item.tab)}
-                      className="flex items-center space-x-2.5 px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200/60 dark:border-gray-700/60 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700/50 transition text-left"
+                      className="flex items-center space-x-2.5 px-4 py-3 bg-[#141111] border border-[#5C4E4E]/55/60 border-[#5C4E4E]/45/60 rounded-md hover:bg-[#1c1818] transition text-left"
                     >
-                      <item.icon className="w-4 h-4 text-gray-600 dark:text-gray-400 shrink-0" />
+                      <item.icon className="w-4 h-4 text-[#988686] shrink-0" />
                       <div className="min-w-0">
-                        <p className="font-medium text-xs text-gray-900 dark:text-white">{item.title}</p>
-                        <p className="text-[10px] text-gray-500 dark:text-gray-400">{item.description}</p>
+                        <p className="font-medium text-xs text-[#D1D0D0]">{item.title}</p>
+                        <p className="text-[10px] text-[#988686]">{item.description}</p>
                       </div>
                     </button>
                   ))}
@@ -781,42 +840,42 @@ const Dashboard = () => {
                 <div className="lg:col-span-2 space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h2 className="text-base font-bold text-gray-900 dark:text-white">Recommended Skill Matches</h2>
-                      <p className="text-xs text-gray-500">Matched via skill & interest similarity</p>
+                      <h2 className="text-base font-bold text-[#D1D0D0]">Discovery</h2>
+                      <p className="text-xs text-[#988686]">People matched to your skills and interests</p>
                     </div>
-                    <button onClick={() => setActiveTab('find-match')} className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline">
+                    <button onClick={() => setActiveTab('find-match')} className="text-xs font-semibold text-[#D1D0D0] hover:underline">
                       Explore All
                     </button>
                   </div>
 
                   <div className="grid md:grid-cols-2 gap-3">
                     {matches.slice(0, 4).map((user) => (
-                      <div key={user.id} className="bg-white dark:bg-gray-800 border border-gray-200/80 dark:border-gray-700/80 rounded-lg p-4 flex flex-col justify-between">
+                      <div key={user.id} className="bg-[#141111] border border-[#5C4E4E]/55 rounded-lg p-4 flex flex-col justify-between">
                         <div>
                           <div className="flex items-start space-x-3 mb-3">
-                            <Avatar className="w-10 h-10 border border-gray-200 dark:border-gray-700">
+                            <Avatar className="w-10 h-10 border border-[#5C4E4E]/55">
                               {user.avatar_url ? (<AvatarImage src={user.avatar_url} />) : (
-                                <AvatarFallback className="bg-slate-100 dark:bg-gray-700 text-slate-800 dark:text-gray-200 text-xs font-bold">
+                                <AvatarFallback className="bg-[#D1D0D0] bg-[#5C4E4E]/50 text-[#D1D0D0] text-[#D1D0D0] text-xs font-bold">
                                   {user.avatar}
                                 </AvatarFallback>
                               )}
                             </Avatar>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center justify-between">
-                                <h4 className="font-bold text-xs truncate text-gray-900 dark:text-white">{user.name}</h4>
-                                <span className="text-[11px] font-mono font-semibold text-slate-700 dark:text-slate-300 bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded">
+                                <h4 className="font-bold text-xs truncate text-[#D1D0D0]">{user.name}</h4>
+                                <span className="text-[11px] font-mono font-semibold text-[#988686] dark:text-[#988686] bg-[#5C4E4E]/40 px-1.5 py-0.5 rounded">
                                   {user.matchScore}% match
                                 </span>
                               </div>
-                              <p className="text-[11px] text-gray-500 truncate">{user.title}</p>
-                              <p className="text-[10px] text-gray-400 flex items-center mt-0.5"><MapPin className="w-3 h-3 mr-0.5 text-gray-400" /> {user.location}</p>
+                              <p className="text-[11px] text-[#988686] truncate">{user.title}</p>
+                              <p className="text-[10px] text-[#988686] flex items-center mt-0.5"><MapPin className="w-3 h-3 mr-0.5 text-[#988686]" /> {user.location}</p>
                             </div>
                           </div>
 
                           {user.skills && user.skills.length > 0 && (
                             <div className="flex flex-wrap gap-1 mb-3">
                               {user.skills.slice(0, 3).map(s => (
-                                <span key={s} className="text-[10px] bg-gray-100 dark:bg-gray-700/70 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded font-medium">
+                                <span key={s} className="text-[10px] bg-[#5C4E4E]/40/70 text-[#D1D0D0] px-2 py-0.5 rounded font-medium">
                                   {s}
                                 </span>
                               ))}
@@ -824,16 +883,16 @@ const Dashboard = () => {
                           )}
                         </div>
 
-                        <div className="flex gap-2 pt-3 border-t border-gray-100 dark:border-gray-700/80">
-                          <button onClick={() => setSelectedUserModal(user)} className="flex-1 px-2.5 py-1 text-xs font-medium border border-gray-300 dark:border-gray-700 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                        <div className="flex gap-2 pt-3 border-t border-[#5C4E4E]/40">
+                          <button onClick={() => setSelectedUserModal(user)} className="flex-1 px-2.5 py-1 text-xs font-medium border border-[#5C4E4E] rounded-md hover:bg-[#1c1818] transition">
                             View Profile
                           </button>
                           {user.connectionStatus === 'connected' ? (
                             <span className="px-2.5 py-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 rounded-md">Connected</span>
                           ) : user.connectionStatus === 'requested_sent' ? (
-                            <span className="px-2.5 py-1 text-[11px] font-semibold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 rounded-md">Pending</span>
+                            <span className="px-2.5 py-1 text-[11px] font-semibold text-[#D1D0D0] bg-amber-50 dark:bg-amber-950/40 rounded-md">Pending</span>
                           ) : (
-                            <button onClick={() => handleConnect(user)} className="px-3 py-1 text-xs font-semibold bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 rounded-md hover:bg-slate-800 dark:hover:bg-white transition">
+                            <button onClick={() => handleConnect(user)} className="px-3 py-1 text-xs font-semibold bg-[#D1D0D0] text-black rounded-md hover:bg-[#e8e7e7] transition">
                               Connect
                             </button>
                           )}
@@ -841,70 +900,146 @@ const Dashboard = () => {
                       </div>
                     ))}
                     {matches.length === 0 && (
-                      <div className="col-span-full p-6 text-center text-xs text-gray-500 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-                        No matches found. Use Find Buddies tab to discover peers.
+                      <div className="col-span-full p-6 text-center text-xs text-[#988686] bg-[#141111] rounded-lg border border-[#5C4E4E]/55">
+                        No matches yet. Complete your profile skills, then open Find Buddies.
                       </div>
                     )}
                   </div>
                 </div>
 
-                {/* Right Column: Connections & Community Activity */}
+                {/* Right Column: Network + Communities */}
                 <div className="space-y-4">
-                  {/* Connections List */}
-                  <div className="bg-white dark:bg-gray-800 border border-gray-200/80 dark:border-gray-700/80 rounded-lg p-4">
+                  <div className="bg-[#141111] border border-[#5C4E4E]/55 rounded-lg p-4">
                     <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">My Connections</h3>
-                      <span className="text-xs font-mono text-gray-500">{connections.length}</span>
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-[#988686]">Network</h3>
+                      <button onClick={() => setActiveTab('connections')} className="text-[11px] font-medium text-[#D1D0D0] hover:underline">View all</button>
                     </div>
+                    {incomingRequests.length > 0 && (
+                      <div className="mb-3 space-y-2">
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-[#D1D0D0]">Incoming requests</p>
+                        {incomingRequests.slice(0, 2).map((r) => (
+                          <div key={r.id} className="flex items-center justify-between gap-2 p-2 rounded-md bg-[#5C4E4E]/30 border border-[#5C4E4E]/55">
+                            <div className="min-w-0">
+                              <p className="text-xs font-semibold truncate">{r.otherUser?.name || r.from}</p>
+                              <p className="text-[10px] text-[#988686] truncate">{r.otherUser?.title || 'Wants to connect'}</p>
+                            </div>
+                            <div className="flex gap-1 shrink-0">
+                              <button onClick={() => respondRequest(r.id, 'accept')} className="px-2 py-1 text-[10px] font-semibold bg-[#D1D0D0] text-black rounded">Accept</button>
+                              <button onClick={() => respondRequest(r.id, 'reject')} className="px-2 py-1 text-[10px] font-medium border border-[#5C4E4E] rounded">Decline</button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                     <div className="space-y-2">
                       {connections.slice(0, 3).map((c) => (
-                        <div key={c.id} className="flex items-center justify-between p-2 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700/50 transition">
+                        <div key={c.id} className="flex items-center justify-between p-2 rounded-md hover:bg-[#1c1818] transition">
                           <div className="flex items-center space-x-2.5 min-w-0">
                             <Avatar className="w-7 h-7">
                               {c.avatar_url ? (<AvatarImage src={c.avatar_url} />) : (
-                                <AvatarFallback className="bg-slate-200 dark:bg-gray-700 text-slate-800 text-[10px] font-bold">
+                                <AvatarFallback className="bg-[#5C4E4E]/40 bg-[#5C4E4E]/50 text-[#D1D0D0] text-[10px] font-bold">
                                   {c.avatar || (c.name || 'U').slice(0, 2).toUpperCase()}
                                 </AvatarFallback>
                               )}
                             </Avatar>
                             <div className="min-w-0">
                               <p className="text-xs font-semibold truncate leading-tight">{c.name}</p>
-                              <p className="text-[10px] text-gray-500 truncate">{c.title || c.email}</p>
+                              <p className="text-[10px] text-[#988686] truncate">{c.title || c.email}</p>
                             </div>
                           </div>
-                          <button onClick={() => setSelectedUserModal(c)} className="text-[11px] text-indigo-600 dark:text-indigo-400 font-medium hover:underline shrink-0">
+                          <button onClick={() => setSelectedUserModal(c)} className="text-[11px] text-[#D1D0D0] font-medium hover:underline shrink-0">
                             View
                           </button>
                         </div>
                       ))}
-                      {connections.length === 0 && (
-                        <p className="text-xs text-gray-500 py-3 text-center">No active connections yet.</p>
+                      {connections.length === 0 && incomingRequests.length === 0 && (
+                        <p className="text-xs text-[#988686] py-3 text-center">No connections yet. Find buddies to start.</p>
                       )}
                     </div>
                   </div>
 
-                  {/* Joined Communities */}
-                  <div className="bg-white dark:bg-gray-800 border border-gray-200/80 dark:border-gray-700/80 rounded-lg p-4">
+                  <div className="bg-[#141111] border border-[#5C4E4E]/55 rounded-lg p-4">
                     <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Joined Communities</h3>
-                      <span className="text-xs font-mono text-gray-500">{communities.length}</span>
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-[#988686]">Communities</h3>
+                      <span className="text-xs font-mono text-[#988686]">{communities.length}</span>
                     </div>
                     <div className="space-y-2">
                       {communities.slice(0, 3).map((comm) => (
-                        <div key={comm.id} className="flex items-center justify-between p-2 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700/50 transition">
+                        <div key={comm.id} className="flex items-center justify-between p-2 rounded-md hover:bg-[#1c1818] transition">
                           <div className="min-w-0">
                             <p className="text-xs font-semibold truncate">{comm.name}</p>
-                            <p className="text-[10px] text-gray-500">{comm.member_count} members • {comm.domain}</p>
+                            <p className="text-[10px] text-[#988686]">{comm.member_count} members â€¢ {comm.domain}</p>
                           </div>
-                          <button onClick={() => setSelectedCommunity(comm)} className="px-2.5 py-1 text-[11px] font-medium border border-gray-300 dark:border-gray-700 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+                          <button onClick={() => setSelectedCommunity(comm)} className="px-2.5 py-1 text-[11px] font-medium border border-[#5C4E4E] rounded-md hover:bg-[#1c1818] transition">
                             Open
                           </button>
                         </div>
                       ))}
                       {communities.length === 0 && (
-                        <p className="text-xs text-gray-500 py-3 text-center">Not in any community yet.</p>
+                        <p className="text-xs text-[#988686] py-3 text-center">Not in any community yet.</p>
                       )}
                     </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Learning + Activity */}
+              <div className="grid lg:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-base font-bold text-[#D1D0D0]">Learning</h2>
+                      <p className="text-xs text-[#988686]">Events and challenges from your network</p>
+                    </div>
+                    <button onClick={() => setActiveTab('events')} className="text-xs font-semibold text-[#D1D0D0] hover:underline">Events</button>
+                  </div>
+                  <div className="space-y-2">
+                    {events.slice(0, 3).map((e) => (
+                      <div key={e.id} className="bg-[#141111] border border-[#5C4E4E]/55 rounded-lg p-3.5 flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold text-[#D1D0D0] truncate">{e.title}</p>
+                          <p className="text-[11px] text-[#988686] mt-0.5">{e.date || 'TBA'}{e.time ? ` Â· ${e.time}` : ''} Â· {e.attendees_count || 0} attending</p>
+                        </div>
+                        <button onClick={() => openEventModal(e.id)} className="text-[11px] font-medium text-[#D1D0D0] hover:underline shrink-0">Details</button>
+                      </div>
+                    ))}
+                    {challenges.filter(c => c.is_joined).slice(0, 2).map((c) => (
+                      <div key={c.id} className="bg-[#141111] border border-[#5C4E4E]/55 rounded-lg p-3.5 flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold text-[#D1D0D0] truncate">{c.title}</p>
+                          <p className="text-[11px] text-[#988686] mt-0.5">Challenge Â· {c.difficulty || 'Medium'} Â· {c.points || 150} pts</p>
+                        </div>
+                        <button onClick={() => openChallengeModal(c.id)} className="text-[11px] font-medium text-[#D1D0D0] hover:underline shrink-0">Open</button>
+                      </div>
+                    ))}
+                    {events.length === 0 && challenges.filter(c => c.is_joined).length === 0 && (
+                      <div className="p-5 text-center text-xs text-[#988686] bg-[#141111] rounded-lg border border-[#5C4E4E]/55">
+                        No upcoming events or joined challenges yet.
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-base font-bold text-[#D1D0D0]">Activity</h2>
+                      <p className="text-xs text-[#988686]">Recent system notifications</p>
+                    </div>
+                    <button onClick={() => setActiveTab('notifications')} className="text-xs font-semibold text-[#D1D0D0] hover:underline">All</button>
+                  </div>
+                  <div className="bg-[#141111] border border-[#5C4E4E]/55 rounded-lg divide-y divide-[#5C4E4E]/40">
+                    {notificationsData.slice(0, 5).map((n) => (
+                      <div key={n.id} className={`px-4 py-3 ${n.read ? '' : 'bg-[#1c1818]/80'}`}>
+                        <p className="text-xs text-[#D1D0D0] font-medium leading-snug">{n.message}</p>
+                        {n.created_at && (
+                          <span className="text-[10px] text-[#988686] font-mono mt-1 block">{new Date(n.created_at).toLocaleString()}</span>
+                        )}
+                      </div>
+                    ))}
+                    {notificationsData.length === 0 && (
+                      <div className="p-5 text-center text-xs text-[#988686]">No recent activity yet.</div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -914,16 +1049,16 @@ const Dashboard = () => {
           {/* FIND BUDDIES TAB */}
           {activeTab === "find-match" && (
             <div className="space-y-6">
-              <div className="bg-white dark:bg-gray-800 p-5 rounded-lg border border-gray-200/80 dark:border-gray-700">
+              <div className="bg-[#141111] p-5 rounded-lg border border-[#5C4E4E]/55 space-y-4">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div>
-                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">Find Skill Buddies</h2>
-                    <p className="text-xs text-gray-500 mt-0.5">Semantic AI match across real user profiles</p>
+                    <h2 className="text-xl font-bold text-[#D1D0D0]">Find Skill Buddies</h2>
+                    <p className="text-xs text-[#988686] mt-0.5">Semantic match across real user profiles</p>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 w-full md:w-auto">
                     <div className="relative flex-1 md:w-80">
-                      <Search className="w-3.5 h-3.5 absolute left-3 top-3 text-gray-400" />
+                      <Search className="w-3.5 h-3.5 absolute left-3 top-3 text-[#988686]" />
                       <input 
                         type="text" 
                         placeholder="Search by skill, name, title..." 
@@ -938,6 +1073,35 @@ const Dashboard = () => {
                     </button>
                   </div>
                 </div>
+
+                {skillFilterOptions.length > 0 && (
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-[#988686] mb-2">Filter by skill</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => { setSelectedSkillFilter(""); handleFindMatch(""); }}
+                        className={`px-2.5 py-1 text-[11px] font-medium rounded-md border transition ${!selectedSkillFilter ? 'bg-[#D1D0D0] text-black border-[#D1D0D0]' : 'bg-[#0a0909] text-[#988686] border-[#5C4E4E]/55 hover:bg-black'}`}
+                      >
+                        All
+                      </button>
+                      {skillFilterOptions.map((skill) => (
+                        <button
+                          key={skill}
+                          type="button"
+                          onClick={() => {
+                            const next = selectedSkillFilter === skill ? "" : skill;
+                            setSelectedSkillFilter(next);
+                            handleFindMatch(next);
+                          }}
+                          className={`px-2.5 py-1 text-[11px] font-medium rounded-md border transition ${selectedSkillFilter === skill ? 'bg-[#D1D0D0] text-black border-[#D1D0D0]' : 'bg-[#0a0909] text-[#988686] border-[#5C4E4E]/55 hover:bg-black'}`}
+                        >
+                          {skill}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {matchError && (
@@ -945,19 +1109,19 @@ const Dashboard = () => {
               )}
 
               {isFinding ? (
-                <div className="flex flex-col items-center justify-center py-16 text-gray-500 space-y-2">
-                  <Loader2 className="w-6 h-6 animate-spin text-slate-700 dark:text-slate-300" />
+                <div className="flex flex-col items-center justify-center py-16 text-[#988686] space-y-2">
+                  <Loader2 className="w-6 h-6 animate-spin text-[#988686] dark:text-[#988686]" />
                   <p className="text-xs font-medium">Matching vector embeddings...</p>
                 </div>
               ) : (
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {matches.map((user) => (
-                    <div key={user.id} className="bg-white dark:bg-gray-800 border border-gray-200/80 dark:border-gray-700/80 rounded-lg p-4 flex flex-col justify-between hover:border-gray-300 dark:hover:border-gray-600 transition">
+                    <div key={user.id} className="bg-[#141111] border border-[#5C4E4E]/55 rounded-lg p-4 flex flex-col justify-between hover:border-[#5C4E4E] dark:hover:border-gray-600 transition">
                       <div>
                         <div className="flex items-start space-x-3 mb-3">
-                          <Avatar className="w-12 h-12 border border-gray-200 dark:border-gray-700">
+                          <Avatar className="w-12 h-12 border border-[#5C4E4E]/55">
                             {user.avatar_url ? (<AvatarImage src={user.avatar_url} />) : (
-                              <AvatarFallback className="bg-slate-100 dark:bg-gray-700 text-slate-800 dark:text-gray-200 text-sm font-bold">
+                              <AvatarFallback className="bg-[#D1D0D0] bg-[#5C4E4E]/50 text-[#D1D0D0] text-[#D1D0D0] text-sm font-bold">
                                 {user.avatar}
                               </AvatarFallback>
                             )}
@@ -965,24 +1129,24 @@ const Dashboard = () => {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between">
                               <h4 className="font-bold text-sm truncate">{user.name}</h4>
-                              <span className="text-[10px] font-mono font-bold text-slate-700 dark:text-slate-300 bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded">
+                              <span className="text-[10px] font-mono font-bold text-[#988686] dark:text-[#988686] bg-[#5C4E4E]/40 px-1.5 py-0.5 rounded">
                                 {user.matchScore}%
                               </span>
                             </div>
-                            <p className="text-xs text-gray-600 dark:text-gray-300 truncate">{user.title}</p>
-                            <p className="text-[11px] text-gray-400 flex items-center mt-0.5"><MapPin className="w-3 h-3 mr-0.5 text-gray-400" />{user.location || 'Remote'}</p>
+                            <p className="text-xs text-[#988686] truncate">{user.title}</p>
+                            <p className="text-[11px] text-[#988686] flex items-center mt-0.5"><MapPin className="w-3 h-3 mr-0.5 text-[#988686]" />{user.location || 'Remote'}</p>
                           </div>
                         </div>
 
                         {user.bio && (
-                          <p className="text-xs text-gray-500 line-clamp-2 mb-3 italic">"{user.bio}"</p>
+                          <p className="text-xs text-[#988686] line-clamp-2 mb-3 italic">"{user.bio}"</p>
                         )}
 
                         {user.skills && user.skills.length > 0 && (
                           <div className="mb-4">
                             <div className="flex flex-wrap gap-1">
                               {user.skills.map((skill) => (
-                                <span key={skill} className="text-[10px] bg-gray-100 dark:bg-gray-700/70 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded font-medium">
+                                <span key={skill} className="text-[10px] bg-[#5C4E4E]/40/70 text-[#D1D0D0] px-2 py-0.5 rounded font-medium">
                                   {skill}
                                 </span>
                               ))}
@@ -991,8 +1155,8 @@ const Dashboard = () => {
                         )}
                       </div>
 
-                      <div className="pt-3 border-t border-gray-100 dark:border-gray-700 flex gap-2">
-                        <button onClick={() => setSelectedUserModal(user)} className="flex-1 px-3 py-1.5 text-xs font-medium border border-gray-300 dark:border-gray-700 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                      <div className="pt-3 border-t border-[#5C4E4E]/40 flex gap-2">
+                        <button onClick={() => setSelectedUserModal(user)} className="flex-1 px-3 py-1.5 text-xs font-medium border border-[#5C4E4E] rounded-md hover:bg-[#1c1818] transition">
                           Profile
                         </button>
                         {user.connectionStatus === 'connected' ? (
@@ -1006,7 +1170,7 @@ const Dashboard = () => {
                             Accept
                           </button>
                         ) : (
-                          <button onClick={() => handleConnect(user)} className="px-3 py-1.5 text-xs font-semibold bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 rounded-md hover:bg-slate-800 dark:hover:bg-white transition flex items-center justify-center">
+                          <button onClick={() => handleConnect(user)} className="px-3 py-1.5 text-xs font-semibold bg-[#D1D0D0] text-black rounded-md hover:bg-[#e8e7e7] transition flex items-center justify-center">
                             <UserPlus className="w-3.5 h-3.5 mr-1" /> Connect
                           </button>
                         )}
@@ -1015,7 +1179,7 @@ const Dashboard = () => {
                   ))}
 
                   {matches.length === 0 && (
-                    <div className="col-span-full py-12 text-center text-xs text-gray-500 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <div className="col-span-full py-12 text-center text-xs text-[#988686] bg-[#141111] rounded-lg border border-[#5C4E4E]/55">
                       No profiles found matching search query.
                     </div>
                   )}
@@ -1028,71 +1192,71 @@ const Dashboard = () => {
           {activeTab === "connections" && (
             <div className="space-y-6">
               <div>
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Connections</h2>
-                <p className="text-xs text-gray-500">Incoming requests & verified skill connections</p>
+                <h2 className="text-xl font-bold text-[#D1D0D0]">Connections</h2>
+                <p className="text-xs text-[#988686]">Incoming requests & verified skill connections</p>
               </div>
 
               {/* Pending Received Requests */}
-              <div className="bg-white dark:bg-gray-800 border border-gray-200/80 dark:border-gray-700/80 rounded-lg p-5">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-3">
-                  Incoming Connection Requests ({requests.length})
+              <div className="bg-[#141111] border border-[#5C4E4E]/55 rounded-lg p-5">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-[#988686] mb-3">
+                  Incoming Connection Requests ({incomingRequests.length})
                 </h3>
                 <div className="space-y-2">
-                  {requests.filter(r => r.direction === 'incoming' || !r.direction).map((r) => (
-                    <div key={r.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg border border-gray-200/60 dark:border-gray-600">
+                  {incomingRequests.map((r) => (
+                    <div key={r.id} className="flex items-center justify-between p-3 bg-[#1c1818] rounded-lg border border-[#5C4E4E]/45">
                       <div className="flex items-center space-x-3">
                         <Avatar className="w-9 h-9">
-                          <AvatarFallback className="bg-slate-800 text-white font-bold text-xs">
+                          <AvatarFallback className="bg-[#5C4E4E] text-white font-bold text-xs">
                             {r.otherUser?.avatar || (r.from || 'U').slice(0, 2).toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
                         <div>
                           <h4 className="font-semibold text-xs">{r.otherUser?.name || r.from}</h4>
-                          <p className="text-[11px] text-gray-500">{r.otherUser?.title || r.from}</p>
+                          <p className="text-[11px] text-[#988686]">{r.otherUser?.title || r.from}</p>
                         </div>
                       </div>
                       <div className="flex gap-2">
-                        <button onClick={() => respondRequest(r.id, 'accept')} className="px-3 py-1 text-xs font-semibold bg-slate-900 text-white rounded-md hover:bg-slate-800 transition">
+                        <button onClick={() => respondRequest(r.id, 'accept')} className="px-3 py-1 text-xs font-semibold bg-[#D1D0D0] text-black rounded-md hover:bg-[#e8e7e7] transition">
                           Accept
                         </button>
-                        <button onClick={() => respondRequest(r.id, 'reject')} className="px-3 py-1 text-xs font-medium border border-gray-300 text-gray-700 rounded-md hover:bg-gray-100 transition">
+                        <button onClick={() => respondRequest(r.id, 'reject')} className="px-3 py-1 text-xs font-medium border border-[#5C4E4E] text-[#D1D0D0] rounded-md hover:bg-[#1c1818] transition">
                           Decline
                         </button>
                       </div>
                     </div>
                   ))}
-                  {requests.filter(r => r.direction === 'incoming' || !r.direction).length === 0 && (
-                    <p className="text-xs text-gray-500 py-3 text-center">No incoming connection requests.</p>
+                  {incomingRequests.length === 0 && (
+                    <p className="text-xs text-[#988686] py-3 text-center">No incoming connection requests.</p>
                   )}
                 </div>
               </div>
 
               {/* Connected Buddies */}
-              <div className="bg-white dark:bg-gray-800 border border-gray-200/80 dark:border-gray-700/80 rounded-lg p-5">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-3">
+              <div className="bg-[#141111] border border-[#5C4E4E]/55 rounded-lg p-5">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-[#988686] mb-3">
                   Connected Peers ({connections.length})
                 </h3>
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
                   {connections.map((c) => (
-                    <div key={c.id} className="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg border border-gray-200/60 dark:border-gray-600 flex items-start space-x-3">
-                      <Avatar className="w-10 h-10 border border-gray-200 dark:border-gray-700">
+                    <div key={c.id} className="p-3 bg-[#1c1818] rounded-lg border border-[#5C4E4E]/45 flex items-start space-x-3">
+                      <Avatar className="w-10 h-10 border border-[#5C4E4E]/55">
                         {c.avatar_url ? (<AvatarImage src={c.avatar_url} />) : (
-                          <AvatarFallback className="bg-slate-200 dark:bg-gray-700 text-slate-800 text-xs font-bold">
+                          <AvatarFallback className="bg-[#5C4E4E]/40 bg-[#5C4E4E]/50 text-[#D1D0D0] text-xs font-bold">
                             {c.avatar || (c.name || 'U').slice(0, 2).toUpperCase()}
                           </AvatarFallback>
                         )}
                       </Avatar>
                       <div className="flex-1 min-w-0">
                         <h4 className="font-semibold text-xs truncate">{c.name}</h4>
-                        <p className="text-[11px] text-gray-500 truncate">{c.title || c.email}</p>
-                        <button onClick={() => setSelectedUserModal(c)} className="mt-2 text-[11px] font-medium text-indigo-600 dark:text-indigo-400 hover:underline">
+                        <p className="text-[11px] text-[#988686] truncate">{c.title || c.email}</p>
+                        <button onClick={() => setSelectedUserModal(c)} className="mt-2 text-[11px] font-medium text-[#D1D0D0] hover:underline">
                           View Profile
                         </button>
                       </div>
                     </div>
                   ))}
                   {connections.length === 0 && (
-                    <div className="col-span-full py-6 text-center text-xs text-gray-500">
+                    <div className="col-span-full py-6 text-center text-xs text-[#988686]">
                       No active connections found.
                     </div>
                   )}
@@ -1106,38 +1270,38 @@ const Dashboard = () => {
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">Active Challenges</h2>
-                  <p className="text-xs text-gray-500">Developer sprints & problem solving</p>
+                  <h2 className="text-xl font-bold text-[#D1D0D0]">Active Challenges</h2>
+                  <p className="text-xs text-[#988686]">Developer sprints & problem solving</p>
                 </div>
                 <button onClick={loadChallenges} className="btn-outline">Refresh</button>
               </div>
 
               {challengesLoading ? (
-                <div className="flex items-center justify-center py-16 text-gray-500 text-xs">
-                  <Loader2 className="w-5 h-5 mr-2 animate-spin text-slate-700" /> Loading challenges...
+                <div className="flex items-center justify-center py-16 text-[#988686] text-xs">
+                  <Loader2 className="w-5 h-5 mr-2 animate-spin text-[#988686]" /> Loading challenges...
                 </div>
               ) : (
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {challenges.map((c) => (
-                    <div key={c.id} className="bg-white dark:bg-gray-800 border border-gray-200/80 dark:border-gray-700/80 rounded-lg p-5 flex flex-col justify-between">
+                    <div key={c.id} className="bg-[#141111] border border-[#5C4E4E]/55 rounded-lg p-5 flex flex-col justify-between">
                       <div>
                         <div className="flex items-center justify-between mb-2">
-                          <span className="text-[10px] font-semibold bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded text-gray-700 dark:text-gray-300">
+                          <span className="text-[10px] font-semibold bg-[#5C4E4E]/40 px-2 py-0.5 rounded text-[#D1D0D0]">
                             {c.difficulty || 'Medium'}
                           </span>
-                          <span className="text-xs font-mono font-medium text-gray-500">{c.points || 150} pts</span>
+                          <span className="text-xs font-mono font-medium text-[#988686]">{c.points || 150} pts</span>
                         </div>
-                        <h3 className="font-bold text-sm mb-1 text-gray-900 dark:text-white">{c.title}</h3>
-                        <p className="text-xs text-gray-500 line-clamp-2 mb-4">{c.description}</p>
+                        <h3 className="font-bold text-sm mb-1 text-[#D1D0D0]">{c.title}</h3>
+                        <p className="text-xs text-[#988686] line-clamp-2 mb-4">{c.description}</p>
                       </div>
 
-                      <div className="pt-3 border-t border-gray-100 dark:border-gray-700">
-                        <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
+                      <div className="pt-3 border-t border-[#5C4E4E]/40">
+                        <div className="flex items-center justify-between text-xs text-[#988686] mb-3">
                           <span>{c.participant_count || 0} participants</span>
                           <span>{c.creator_name || 'Admin'}</span>
                         </div>
                         <div className="flex gap-2">
-                          <button onClick={() => openChallengeModal(c.id)} className="flex-1 px-3 py-1.5 text-xs font-medium border border-gray-300 dark:border-gray-700 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                          <button onClick={() => openChallengeModal(c.id)} className="flex-1 px-3 py-1.5 text-xs font-medium border border-[#5C4E4E] rounded-md hover:bg-[#1c1818] transition">
                             Details
                           </button>
                           {c.is_joined ? (
@@ -1145,7 +1309,7 @@ const Dashboard = () => {
                               Leave
                             </button>
                           ) : (
-                            <button onClick={() => joinChallenge(c.id)} disabled={joiningId === c.id} className="px-3 py-1.5 text-xs font-semibold bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 rounded-md hover:bg-slate-800 transition">
+                            <button onClick={() => joinChallenge(c.id)} disabled={joiningId === c.id} className="px-3 py-1.5 text-xs font-semibold bg-[#D1D0D0] text-black rounded-md hover:bg-[#e8e7e7] transition">
                               Join Sprint
                             </button>
                           )}
@@ -1163,8 +1327,8 @@ const Dashboard = () => {
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">Community Events</h2>
-                  <p className="text-xs text-gray-500">Live tech talks & workshops</p>
+                  <h2 className="text-xl font-bold text-[#D1D0D0]">Community Events</h2>
+                  <p className="text-xs text-[#988686]">Live tech talks & workshops</p>
                 </div>
                 <div className="flex gap-2">
                   <button onClick={() => setShowCreateEventModal(true)} className="btn-primary">
@@ -1175,26 +1339,26 @@ const Dashboard = () => {
               </div>
 
               {eventsLoading ? (
-                <div className="flex items-center justify-center py-16 text-gray-500 text-xs">
-                  <Loader2 className="w-5 h-5 mr-2 animate-spin text-slate-700" /> Loading events...
+                <div className="flex items-center justify-center py-16 text-[#988686] text-xs">
+                  <Loader2 className="w-5 h-5 mr-2 animate-spin text-[#988686]" /> Loading events...
                 </div>
               ) : (
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {events.map((e) => (
-                    <div key={e.id} className="bg-white dark:bg-gray-800 border border-gray-200/80 dark:border-gray-700/80 rounded-lg p-5 flex flex-col justify-between">
+                    <div key={e.id} className="bg-[#141111] border border-[#5C4E4E]/55 rounded-lg p-5 flex flex-col justify-between">
                       <div>
-                        <span className="text-[10px] font-semibold bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded text-gray-700 dark:text-gray-300 mb-2 inline-block">
+                        <span className="text-[10px] font-semibold bg-[#5C4E4E]/40 px-2 py-0.5 rounded text-[#D1D0D0] mb-2 inline-block">
                           {e.location || 'Online'}
                         </span>
-                        <h3 className="font-bold text-sm text-gray-900 dark:text-white mb-1">{e.title}</h3>
-                        <p className="text-xs text-gray-500 line-clamp-2 mb-3">{e.description}</p>
-                        <div className="text-xs text-gray-600 dark:text-gray-400 space-y-1 mb-4">
-                          <p className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 text-gray-400" /> {e.date || 'TBA'} {e.time}</p>
-                          <p className="flex items-center gap-1.5"><Users className="w-3.5 h-3.5 text-gray-400" /> {e.attendees_count || 0} Attendees</p>
+                        <h3 className="font-bold text-sm text-[#D1D0D0] mb-1">{e.title}</h3>
+                        <p className="text-xs text-[#988686] line-clamp-2 mb-3">{e.description}</p>
+                        <div className="text-xs text-[#988686] space-y-1 mb-4">
+                          <p className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 text-[#988686]" /> {e.date || 'TBA'} {e.time}</p>
+                          <p className="flex items-center gap-1.5"><Users className="w-3.5 h-3.5 text-[#988686]" /> {e.attendees_count || 0} Attendees</p>
                         </div>
                       </div>
-                      <div className="flex gap-2 pt-3 border-t border-gray-100 dark:border-gray-700">
-                        <button onClick={() => openEventModal(e.id)} className="flex-1 px-3 py-1.5 text-xs font-medium border border-gray-300 dark:border-gray-700 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                      <div className="flex gap-2 pt-3 border-t border-[#5C4E4E]/40">
+                        <button onClick={() => openEventModal(e.id)} className="flex-1 px-3 py-1.5 text-xs font-medium border border-[#5C4E4E] rounded-md hover:bg-[#1c1818] transition">
                           Details
                         </button>
                         {e.is_attending ? (
@@ -1202,7 +1366,7 @@ const Dashboard = () => {
                             Leave
                           </button>
                         ) : (
-                          <button onClick={() => joinEvent(e.id)} disabled={joiningId === e.id} className="px-3 py-1.5 text-xs font-semibold bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 rounded-md hover:bg-slate-800 transition">
+                          <button onClick={() => joinEvent(e.id)} disabled={joiningId === e.id} className="px-3 py-1.5 text-xs font-semibold bg-[#D1D0D0] text-black rounded-md hover:bg-[#e8e7e7] transition">
                             RSVP
                           </button>
                         )}
@@ -1219,8 +1383,8 @@ const Dashboard = () => {
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">Notifications</h2>
-                  <p className="text-xs text-gray-500">Activity alerts & announcements</p>
+                  <h2 className="text-xl font-bold text-[#D1D0D0]">Notifications</h2>
+                  <p className="text-xs text-[#988686]">Activity alerts & announcements</p>
                 </div>
                 <button 
                   onClick={async () => {
@@ -1233,15 +1397,15 @@ const Dashboard = () => {
                 </button>
               </div>
 
-              <div className="bg-white dark:bg-gray-800 border border-gray-200/80 dark:border-gray-700/80 rounded-lg divide-y divide-gray-100 dark:divide-gray-700">
+              <div className="bg-[#141111] border border-[#5C4E4E]/55 rounded-lg divide-y divide-[#5C4E4E]/40">
                 {notificationsData.map((n) => (
-                  <div key={n.id} className={`p-4 flex items-center justify-between gap-4 ${n.read ? '' : 'bg-slate-50/70 dark:bg-gray-800/40'}`}>
+                  <div key={n.id} className={`p-4 flex items-center justify-between gap-4 ${n.read ? '' : 'bg-[#1c1818]/70'}`}>
                     <div className="flex items-start space-x-3">
-                      <Bell className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
+                      <Bell className="w-4 h-4 text-[#988686] shrink-0 mt-0.5" />
                       <div>
-                        <p className="text-xs text-gray-900 dark:text-gray-100 font-medium">{n.message}</p>
+                        <p className="text-xs text-[#D1D0D0] font-medium">{n.message}</p>
                         {n.created_at && (
-                          <span className="text-[10px] text-gray-400 font-mono mt-0.5 block">{new Date(n.created_at).toLocaleString()}</span>
+                          <span className="text-[10px] text-[#988686] font-mono mt-0.5 block">{new Date(n.created_at).toLocaleString()}</span>
                         )}
                       </div>
                     </div>
@@ -1249,16 +1413,16 @@ const Dashboard = () => {
                     <div className="flex items-center gap-2 shrink-0">
                       {n.type === 'connection_request' && (
                         <>
-                          <button onClick={() => respondRequest(n.request_id, 'accept')} className="px-2.5 py-1 text-xs font-semibold bg-slate-900 text-white rounded hover:bg-slate-800 transition">
+                          <button onClick={() => respondRequest(n.request_id, 'accept')} className="px-2.5 py-1 text-xs font-semibold bg-[#D1D0D0] text-black rounded hover:bg-[#e8e7e7] transition">
                             Accept
                           </button>
-                          <button onClick={() => respondRequest(n.request_id, 'reject')} className="px-2.5 py-1 text-xs font-medium border border-gray-300 text-gray-700 rounded hover:bg-gray-50 transition">
+                          <button onClick={() => respondRequest(n.request_id, 'reject')} className="px-2.5 py-1 text-xs font-medium border border-[#5C4E4E] text-[#D1D0D0] rounded hover:bg-black transition">
                             Decline
                           </button>
                         </>
                       )}
                       {!n.read && (
-                        <button onClick={() => markNotificationRead(n.id)} className="text-[11px] text-gray-500 hover:underline font-medium">
+                        <button onClick={() => markNotificationRead(n.id)} className="text-[11px] text-[#988686] hover:underline font-medium">
                           Mark Read
                         </button>
                       )}
@@ -1266,7 +1430,7 @@ const Dashboard = () => {
                   </div>
                 ))}
                 {notificationsData.length === 0 && (
-                  <div className="p-8 text-center text-xs text-gray-500">
+                  <div className="p-8 text-center text-xs text-[#988686]">
                     No new notifications.
                   </div>
                 )}
@@ -1278,85 +1442,169 @@ const Dashboard = () => {
           {activeTab === "profile" && (
             <div className="space-y-6 max-w-3xl">
               <div>
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Edit Profile</h2>
-                <p className="text-xs text-gray-500">Manage profile data and matching credentials</p>
+                <h2 className="page-title">Edit Profile</h2>
+                <p className="page-subtitle">Your profile powers skill matching and community discovery.</p>
               </div>
 
-              <div className="bg-white dark:bg-gray-800 border border-gray-200/80 dark:border-gray-700/80 rounded-lg p-6 space-y-6">
-                <form onSubmit={saveProfileEdits} className="space-y-4">
-                  <div className="flex items-center gap-4 pb-4 border-b border-gray-100 dark:border-gray-700">
-                    <Avatar className="w-14 h-14 border border-gray-300 dark:border-gray-700">
+              <div className="bg-[#141111] border border-[#5C4E4E]/55 rounded-lg p-6 space-y-6">
+                <form onSubmit={saveProfileEdits} className="space-y-5">
+                  {/* Avatar */}
+                  <div className="flex items-center gap-4 pb-4 border-b border-[#5C4E4E]/40">
+                    <Avatar className="w-14 h-14 border border-[#5C4E4E]">
                       {profileForm.avatar_url ? (<AvatarImage src={profileForm.avatar_url} />) : (
-                        <AvatarFallback className="bg-slate-200 dark:bg-gray-700 text-slate-800 dark:text-gray-200 font-bold text-base">
+                        <AvatarFallback className="bg-[#5C4E4E]/40 bg-[#5C4E4E]/50 text-[#D1D0D0] text-[#D1D0D0] font-bold text-base">
                           {displayName.slice(0, 2).toUpperCase()}
                         </AvatarFallback>
                       )}
                     </Avatar>
-                    <label className="px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded-md text-xs font-medium cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700">
-                      Upload Avatar
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(e)=>{
-                          const file = e.target.files && e.target.files[0];
-                          if (!file) return;
-                          if (file.size > 1.5 * 1024 * 1024) { alert('Please select an image under 1.5MB.'); return; }
-                          const reader = new FileReader();
-                          reader.onload = () => {
-                            const avatarData = String(reader.result || '');
-                            setProfileForm({ ...profileForm, avatar_url: avatarData });
-                            sessionStorage.setItem(`avatar_${userEmail}`, avatarData);
-                          };
-                          reader.readAsDataURL(file);
-                        }}
-                      />
-                    </label>
+                    <div>
+                      <label className="px-3 py-1.5 border border-[#5C4E4E] rounded-md text-xs font-medium cursor-pointer hover:bg-[#1c1818] transition-colors">
+                        Upload avatar
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e)=>{
+                            const file = e.target.files && e.target.files[0];
+                            if (!file) return;
+                            if (file.size > 1.5 * 1024 * 1024) { alert('Please select an image under 1.5MB.'); return; }
+                            const reader = new FileReader();
+                            reader.onload = () => {
+                              const avatarData = String(reader.result || '');
+                              setProfileForm({ ...profileForm, avatar_url: avatarData });
+                              sessionStorage.setItem(`avatar_${userEmail}`, avatarData);
+                            };
+                            reader.readAsDataURL(file);
+                          }}
+                        />
+                      </label>
+                      <p className="text-[11px] text-[#988686] mt-1">PNG or JPG, max 1.5 MB</p>
+                    </div>
                   </div>
 
+                  {/* Basic fields */}
                   <div className="grid sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-semibold mb-1">Title / Headline</label>
+                      <label className="label-text">Professional title</label>
                       <input className="input-clean" value={profileForm.title} onChange={(e)=>setProfileForm({...profileForm, title: e.target.value})} placeholder="Senior Software Engineer" />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold mb-1">Company</label>
-                      <input className="input-clean" value={profileForm.company} onChange={(e)=>setProfileForm({...profileForm, company: e.target.value})} placeholder="Organization / Student" />
+                      <label className="label-text">Company</label>
+                      <input className="input-clean" value={profileForm.company} onChange={(e)=>setProfileForm({...profileForm, company: e.target.value})} placeholder="Organization or freelance" />
                     </div>
                   </div>
 
                   <div className="grid sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-semibold mb-1">Location</label>
-                      <input className="input-clean" value={profileForm.location} onChange={(e)=>setProfileForm({...profileForm, location: e.target.value})} placeholder="San Francisco, CA" />
+                      <label className="label-text">Location</label>
+                      <input className="input-clean" value={profileForm.location} onChange={(e)=>setProfileForm({...profileForm, location: e.target.value})} placeholder="City, Country" />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold mb-1">Career Goals</label>
-                      <input className="input-clean" value={profileForm.careerGoals} onChange={(e)=>setProfileForm({...profileForm, careerGoals: e.target.value})} placeholder="Master distributed systems" />
+                      <label className="label-text">Career goals</label>
+                      <input className="input-clean" value={profileForm.careerGoals} onChange={(e)=>setProfileForm({...profileForm, careerGoals: e.target.value})} placeholder="e.g. Build distributed systems" />
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold mb-1">Bio</label>
-                    <textarea className="input-clean h-20" value={profileForm.bio} onChange={(e)=>setProfileForm({...profileForm, bio: e.target.value})} placeholder="Brief background..." />
+                    <label className="label-text">Bio</label>
+                    <textarea className="input-clean resize-none" rows={3} value={profileForm.bio} onChange={(e)=>setProfileForm({...profileForm, bio: e.target.value})} placeholder="Brief background and what you're working on..." />
                   </div>
 
-                  <div className="grid sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-semibold mb-1">Skills (comma separated)</label>
-                      <input className="input-clean" value={profileForm.skills} onChange={(e)=>setProfileForm({...profileForm, skills: e.target.value})} placeholder="React, Python, FastAPI" />
+                  {/* Skills — tag pill UI */}
+                  <div>
+                    <label className="label-text">Skills</label>
+                    <div className="flex gap-2 mb-2">
+                      <input
+                        className="input-clean flex-1"
+                        value={currentSkillInput}
+                        onChange={e => setCurrentSkillInput(e.target.value)}
+                        placeholder="Add a skill and press Enter"
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            const val = currentSkillInput.trim();
+                            if (val && !skillTags.includes(val)) setSkillTags(p => [...p, val]);
+                            setCurrentSkillInput('');
+                          }
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const val = currentSkillInput.trim();
+                          if (val && !skillTags.includes(val)) setSkillTags(p => [...p, val]);
+                          setCurrentSkillInput('');
+                        }}
+                        className="btn-primary px-3"
+                      >+</button>
                     </div>
-                    <div>
-                      <label className="block text-xs font-semibold mb-1">Interests (comma separated)</label>
-                      <input className="input-clean" value={profileForm.interests} onChange={(e)=>setProfileForm({...profileForm, interests: e.target.value})} placeholder="AI Systems, UI Design" />
-                    </div>
+                    {skillTags.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {skillTags.map(skill => (
+                          <span key={skill} className="skill-tag">
+                            {skill}
+                            <button type="button" onClick={() => setSkillTags(p => p.filter(s => s !== skill))} className="skill-tag-remove">
+                              <X className="w-3 h-3" />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    {skillTags.length === 0 && <p className="text-[11px] text-[#988686]">No skills added yet.</p>}
                   </div>
 
-                  <div className="flex items-center gap-3 pt-2">
+                  {/* Interests — tag pill UI */}
+                  <div>
+                    <label className="label-text">Interests</label>
+                    <div className="flex gap-2 mb-2">
+                      <input
+                        className="input-clean flex-1"
+                        value={currentInterestInput}
+                        onChange={e => setCurrentInterestInput(e.target.value)}
+                        placeholder="Add an interest and press Enter"
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            const val = currentInterestInput.trim();
+                            if (val && !interestTags.includes(val)) setInterestTags(p => [...p, val]);
+                            setCurrentInterestInput('');
+                          }
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const val = currentInterestInput.trim();
+                          if (val && !interestTags.includes(val)) setInterestTags(p => [...p, val]);
+                          setCurrentInterestInput('');
+                        }}
+                        className="btn-primary px-3"
+                      >+</button>
+                    </div>
+                    {interestTags.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {interestTags.map(interest => (
+                          <span key={interest} className="skill-tag">
+                            {interest}
+                            <button type="button" onClick={() => setInterestTags(p => p.filter(i => i !== interest))} className="skill-tag-remove">
+                              <X className="w-3 h-3" />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    {interestTags.length === 0 && <p className="text-[11px] text-[#988686]">No interests added yet.</p>}
+                  </div>
+
+                  <div className="flex items-center gap-3 pt-2 border-t border-[#5C4E4E]/40">
                     <button type="submit" disabled={profileSaving} className="btn-primary">
-                      {profileSaving ? (<Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />) : null} Save Changes
+                      {profileSaving ? (<Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />) : null} Save changes
                     </button>
-                    {profileMessage && (<span className="text-xs font-bold text-emerald-600">{profileMessage}</span>)}
+                    {profileMessage && (
+                      <span className={`text-xs font-semibold ${profileMessage.includes('Failed') ? 'text-red-600' : 'text-emerald-600'}`}>
+                        {profileMessage}
+                      </span>
+                    )}
                   </div>
                 </form>
               </div>
@@ -1367,23 +1615,23 @@ const Dashboard = () => {
           {activeTab === "settings" && (
             <div className="space-y-6 max-w-xl">
               <div>
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Account Settings</h2>
-                <p className="text-xs text-gray-500">Preferences and visibility configuration</p>
+                <h2 className="text-xl font-bold text-[#D1D0D0]">Account Settings</h2>
+                <p className="text-xs text-[#988686]">Preferences and visibility configuration</p>
               </div>
 
-              <div className="bg-white dark:bg-gray-800 border border-gray-200/80 dark:border-gray-700/80 rounded-lg p-6 space-y-4">
+              <div className="bg-[#141111] border border-[#5C4E4E]/55 rounded-lg p-6 space-y-4">
                 <form onSubmit={saveSettings} className="space-y-4">
-                  <label className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900 rounded-md border border-gray-200 dark:border-gray-700">
+                  <label className="flex items-center justify-between p-3 bg-black rounded-md border border-[#5C4E4E]/55">
                     <span className="text-xs font-medium">Email notifications</span>
                     <input type="checkbox" checked={settings.emailNotifications} onChange={(e) => setSettings({ ...settings, emailNotifications: e.target.checked })} />
                   </label>
-                  <label className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900 rounded-md border border-gray-200 dark:border-gray-700">
+                  <label className="flex items-center justify-between p-3 bg-black rounded-md border border-[#5C4E4E]/55">
                     <span className="text-xs font-medium">Push notifications</span>
                     <input type="checkbox" checked={settings.pushNotifications} onChange={(e) => setSettings({ ...settings, pushNotifications: e.target.checked })} />
                   </label>
-                  <label className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900 rounded-md border border-gray-200 dark:border-gray-700">
+                  <label className="flex items-center justify-between p-3 bg-black rounded-md border border-[#5C4E4E]/55">
                     <span className="text-xs font-medium">Profile visibility</span>
-                    <select value={settings.profileVisibility} onChange={(e) => setSettings({ ...settings, profileVisibility: e.target.value })} className="bg-white dark:bg-gray-800 rounded px-2 py-1 text-xs border border-gray-300 dark:border-gray-700">
+                    <select value={settings.profileVisibility} onChange={(e) => setSettings({ ...settings, profileVisibility: e.target.value })} className="bg-[#141111] rounded px-2 py-1 text-xs border border-[#5C4E4E]">
                       <option value="public">Public</option>
                       <option value="connections">Connections Only</option>
                       <option value="private">Private</option>
@@ -1404,17 +1652,17 @@ const Dashboard = () => {
           {activeTab === "admin" && isAdmin && (
             <div className="space-y-6 max-w-3xl">
               <div>
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Admin Control Panel</h2>
-                <p className="text-xs text-gray-500">Platform governance tools</p>
+                <h2 className="text-xl font-bold text-[#D1D0D0]">Admin Control Panel</h2>
+                <p className="text-xs text-[#988686]">Platform governance tools</p>
               </div>
 
               {adminActionStatus && (
-                <div className="p-3 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-800 dark:text-gray-200 rounded-lg text-xs font-bold">{adminActionStatus}</div>
+                <div className="p-3 bg-[#5C4E4E]/35 dark:bg-gray-800 border border-[#5C4E4E] text-gray-800 text-[#D1D0D0] rounded-lg text-xs font-bold">{adminActionStatus}</div>
               )}
 
               <div className="grid md:grid-cols-2 gap-4">
-                <div className="bg-white dark:bg-gray-800 border border-gray-200/80 dark:border-gray-700/80 rounded-lg p-5">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-3">Create Platform Challenge</h3>
+                <div className="bg-[#141111] border border-[#5C4E4E]/55 rounded-lg p-5">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-[#988686] mb-3">Create Platform Challenge</h3>
                   <form onSubmit={handleAdminCreateChallenge} className="space-y-3">
                     <input className="input-clean" placeholder="Title" value={adminChallengeForm.title} onChange={e=>setAdminChallengeForm({...adminChallengeForm, title: e.target.value})} required />
                     <textarea className="input-clean h-16" placeholder="Description" value={adminChallengeForm.description} onChange={e=>setAdminChallengeForm({...adminChallengeForm, description: e.target.value})} required />
@@ -1427,8 +1675,8 @@ const Dashboard = () => {
                   </form>
                 </div>
 
-                <div className="bg-white dark:bg-gray-800 border border-gray-200/80 dark:border-gray-700/80 rounded-lg p-5">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-3">Create Platform Event</h3>
+                <div className="bg-[#141111] border border-[#5C4E4E]/55 rounded-lg p-5">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-[#988686] mb-3">Create Platform Event</h3>
                   <form onSubmit={handleAdminCreateEvent} className="space-y-3">
                     <input className="input-clean" placeholder="Title" value={adminEventForm.title} onChange={e=>setAdminEventForm({...adminEventForm, title: e.target.value})} required />
                     <textarea className="input-clean h-16" placeholder="Description" value={adminEventForm.description} onChange={e=>setAdminEventForm({...adminEventForm, description: e.target.value})} required />
@@ -1438,8 +1686,8 @@ const Dashboard = () => {
                 </div>
               </div>
 
-              <div className="bg-white dark:bg-gray-800 border border-gray-200/80 dark:border-gray-700/80 rounded-lg p-5">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-3">Broadcast System Notification</h3>
+              <div className="bg-[#141111] border border-[#5C4E4E]/55 rounded-lg p-5">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-[#988686] mb-3">Broadcast System Notification</h3>
                 <form onSubmit={handleAdminSendNotification} className="space-y-3">
                   <textarea className="input-clean h-20" placeholder="Broadcast message..." value={adminNotifForm.message} onChange={e=>setAdminNotifForm({...adminNotifForm, message: e.target.value})} required />
                   <button type="submit" className="btn-primary">Send Broadcast</button>
@@ -1451,12 +1699,12 @@ const Dashboard = () => {
           {/* COMMUNITIES TAB */}
           {activeTab === "communities" && (
             <div className="space-y-6">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
-                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">Communities</h2>
-                  <p className="text-xs text-gray-500">Developer groups and domain hubs</p>
+                  <h2 className="text-xl font-bold text-[#D1D0D0]">Communities</h2>
+                  <p className="text-xs text-[#988686]">Groups you joined and can open</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <button onClick={() => setShowCreateCommunity(true)} className="btn-primary">
                     <Plus className="w-3.5 h-3.5 mr-1" /> Create Community
                   </button>
@@ -1466,23 +1714,34 @@ const Dashboard = () => {
                 </div>
               </div>
 
+              <div className="relative max-w-md">
+                <Search className="w-3.5 h-3.5 absolute left-3 top-3 text-[#988686]" />
+                <input
+                  type="text"
+                  className="input-clean pl-9"
+                  placeholder="Search your communities..."
+                  value={communitySearch}
+                  onChange={(e) => setCommunitySearch(e.target.value)}
+                />
+              </div>
+
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {communities.map((community) => (
-                  <div key={community.id} className="bg-white dark:bg-gray-800 border border-gray-200/80 dark:border-gray-700/80 rounded-lg p-5 flex flex-col justify-between">
+                {filteredCommunities.map((community) => (
+                  <div key={community.id} className="bg-[#141111] border border-[#5C4E4E]/55 rounded-lg p-5 flex flex-col justify-between">
                     <div>
-                      <span className="text-[10px] font-semibold bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded text-gray-700 dark:text-gray-300 mb-2 inline-block">
+                      <span className="text-[10px] font-semibold bg-[#5C4E4E]/40 px-2 py-0.5 rounded text-[#D1D0D0] mb-2 inline-block">
                         {community.domain || 'Tech'}
                       </span>
-                      <h3 className="font-bold text-sm text-gray-900 dark:text-white mb-1">{community.name}</h3>
-                      <p className="text-xs text-gray-500 line-clamp-2 mb-4">{community.description}</p>
+                      <h3 className="font-bold text-sm text-[#D1D0D0] mb-1">{community.name}</h3>
+                      <p className="text-xs text-[#988686] line-clamp-2 mb-4">{community.description}</p>
                     </div>
-                    <div className="pt-3 border-t border-gray-100 dark:border-gray-700">
-                      <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
+                    <div className="pt-3 border-t border-[#5C4E4E]/40">
+                      <div className="flex items-center justify-between text-xs text-[#988686] mb-3">
                         <span>{community.member_count} members</span>
                         <span>Admin: {community.admin_name || 'Admin'}</span>
                       </div>
                       <div className="flex gap-2">
-                        <button onClick={() => setSelectedCommunity(community)} className="flex-1 px-3 py-1.5 text-xs font-semibold bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 rounded-md hover:bg-slate-800 transition">
+                        <button onClick={() => setSelectedCommunity(community)} className="flex-1 px-3 py-1.5 text-xs font-semibold bg-[#D1D0D0] text-black rounded-md hover:bg-[#e8e7e7] transition">
                           Open Community
                         </button>
                         <button onClick={() => leaveCommunity(community.id)} className="px-3 py-1.5 text-xs font-medium border border-red-300 text-red-600 rounded-md hover:bg-red-50 transition">
@@ -1492,9 +1751,11 @@ const Dashboard = () => {
                     </div>
                   </div>
                 ))}
-                {communities.length === 0 && (
-                  <div className="col-span-full py-12 text-center text-xs text-gray-500 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-                    Not joined in any community yet. Click Browse All to discover groups.
+                {filteredCommunities.length === 0 && (
+                  <div className="col-span-full py-12 text-center text-xs text-[#988686] bg-[#141111] rounded-lg border border-[#5C4E4E]/55">
+                    {communitySearch.trim()
+                      ? 'No communities match your search.'
+                      : 'Not joined in any community yet. Click Browse All to discover groups.'}
                   </div>
                 )}
               </div>
@@ -1508,42 +1769,42 @@ const Dashboard = () => {
       {/* User Profile Detail Modal */}
       {selectedUserModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 shadow-sm space-y-4">
+          <div className="w-full max-w-md bg-[#141111] rounded-lg border border-[#5C4E4E]/55 p-6 shadow-sm space-y-4">
             <div className="flex items-start justify-between">
               <div className="flex items-center space-x-3">
-                <Avatar className="w-12 h-12 border border-gray-200 dark:border-gray-700">
+                <Avatar className="w-12 h-12 border border-[#5C4E4E]/55">
                   {selectedUserModal.avatar_url ? (<AvatarImage src={selectedUserModal.avatar_url} />) : (
-                    <AvatarFallback className="bg-slate-800 text-white font-bold text-sm">
+                    <AvatarFallback className="bg-[#5C4E4E] text-white font-bold text-sm">
                       {selectedUserModal.avatar || (selectedUserModal.name || 'U').slice(0, 2).toUpperCase()}
                     </AvatarFallback>
                   )}
                 </Avatar>
                 <div>
-                  <h3 className="font-bold text-sm text-gray-900 dark:text-white">{selectedUserModal.name}</h3>
-                  <p className="text-xs text-gray-500">{selectedUserModal.title}</p>
+                  <h3 className="font-bold text-sm text-[#D1D0D0]">{selectedUserModal.name}</h3>
+                  <p className="text-xs text-[#988686]">{selectedUserModal.title}</p>
                 </div>
               </div>
-              <button onClick={() => setSelectedUserModal(null)} className="text-gray-400 hover:text-gray-600">
+              <button onClick={() => setSelectedUserModal(null)} className="text-[#988686] hover:text-[#988686]">
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             {selectedUserModal.bio && (
-              <p className="text-xs text-gray-600 dark:text-gray-300">{selectedUserModal.bio}</p>
+              <p className="text-xs text-[#988686]">{selectedUserModal.bio}</p>
             )}
 
             {selectedUserModal.skills && selectedUserModal.skills.length > 0 && (
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Skills</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-[#988686] mb-1">Skills</p>
                 <div className="flex flex-wrap gap-1">
                   {selectedUserModal.skills.map(s => (
-                    <span key={s} className="text-[10px] bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded font-medium">{s}</span>
+                    <span key={s} className="text-[10px] bg-[#5C4E4E]/40 text-[#D1D0D0] px-2 py-0.5 rounded font-medium">{s}</span>
                   ))}
                 </div>
               </div>
             )}
 
-            <div className="pt-3 border-t border-gray-100 dark:border-gray-700 flex justify-end gap-2">
+            <div className="pt-3 border-t border-[#5C4E4E]/40 flex justify-end gap-2">
               <button onClick={() => setSelectedUserModal(null)} className="btn-outline">Close</button>
               {selectedUserModal.connectionStatus !== 'connected' && (
                 <button onClick={() => { handleConnect(selectedUserModal); setSelectedUserModal(null); }} className="btn-primary">
@@ -1558,33 +1819,33 @@ const Dashboard = () => {
       {/* Challenge Detail Modal */}
       {selectedChallengeModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className="w-full max-w-lg bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 shadow-sm space-y-4">
+          <div className="w-full max-w-lg bg-[#141111] rounded-lg border border-[#5C4E4E]/55 p-6 shadow-sm space-y-4">
             <div className="flex items-start justify-between">
               <div>
-                <span className="text-[10px] font-semibold bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded text-gray-700 dark:text-gray-300 mb-1 inline-block">
+                <span className="text-[10px] font-semibold bg-[#5C4E4E]/40 px-2 py-0.5 rounded text-[#D1D0D0] mb-1 inline-block">
                   {selectedChallengeModal.difficulty}
                 </span>
-                <h3 className="font-bold text-base text-gray-900 dark:text-white">{selectedChallengeModal.title}</h3>
+                <h3 className="font-bold text-base text-[#D1D0D0]">{selectedChallengeModal.title}</h3>
               </div>
-              <button onClick={() => setSelectedChallengeModal(null)} className="text-gray-400 hover:text-gray-600">
+              <button onClick={() => setSelectedChallengeModal(null)} className="text-[#988686] hover:text-[#988686]">
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">{selectedChallengeModal.description}</p>
+            <p className="text-xs text-[#988686] leading-relaxed">{selectedChallengeModal.description}</p>
 
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2">Participants ({selectedChallengeModal.participant_count})</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-[#988686] mb-2">Participants ({selectedChallengeModal.participant_count})</p>
               <div className="flex flex-wrap gap-2 max-h-32 overflow-auto">
                 {(selectedChallengeModal.participant_profiles || []).map(p => (
-                  <span key={p.id} className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-1 rounded font-medium">
+                  <span key={p.id} className="text-xs bg-[#5C4E4E]/40 text-[#D1D0D0] px-2 py-1 rounded font-medium">
                     {p.name}
                   </span>
                 ))}
               </div>
             </div>
 
-            <div className="pt-3 border-t border-gray-100 dark:border-gray-700 flex justify-end gap-2">
+            <div className="pt-3 border-t border-[#5C4E4E]/40 flex justify-end gap-2">
               <button onClick={() => setSelectedChallengeModal(null)} className="btn-outline">Close</button>
               {selectedChallengeModal.is_joined ? (
                 <button onClick={() => leaveChallenge(selectedChallengeModal.id)} className="px-3 py-1.5 text-xs font-medium border border-red-300 text-red-600 rounded-md hover:bg-red-50">
@@ -1603,22 +1864,22 @@ const Dashboard = () => {
       {/* Event Detail Modal */}
       {selectedEventModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className="w-full max-w-lg bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 shadow-sm space-y-4">
+          <div className="w-full max-w-lg bg-[#141111] rounded-lg border border-[#5C4E4E]/55 p-6 shadow-sm space-y-4">
             <div className="flex items-start justify-between">
               <div>
-                <span className="text-[10px] font-semibold bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded text-gray-700 dark:text-gray-300 mb-1 inline-block">
+                <span className="text-[10px] font-semibold bg-[#5C4E4E]/40 px-2 py-0.5 rounded text-[#D1D0D0] mb-1 inline-block">
                   {selectedEventModal.location || 'Online'}
                 </span>
-                <h3 className="font-bold text-base text-gray-900 dark:text-white">{selectedEventModal.title}</h3>
+                <h3 className="font-bold text-base text-[#D1D0D0]">{selectedEventModal.title}</h3>
               </div>
-              <button onClick={() => setSelectedEventModal(null)} className="text-gray-400 hover:text-gray-600">
+              <button onClick={() => setSelectedEventModal(null)} className="text-[#988686] hover:text-[#988686]">
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">{selectedEventModal.description}</p>
+            <p className="text-xs text-[#988686] leading-relaxed">{selectedEventModal.description}</p>
 
-            <div className="pt-3 border-t border-gray-100 dark:border-gray-700 flex justify-end gap-2">
+            <div className="pt-3 border-t border-[#5C4E4E]/40 flex justify-end gap-2">
               <button onClick={() => setSelectedEventModal(null)} className="btn-outline">Close</button>
               {selectedEventModal.is_attending ? (
                 <button onClick={() => leaveEvent(selectedEventModal.id)} className="px-3 py-1.5 text-xs font-medium border border-red-300 text-red-600 rounded-md hover:bg-red-50">
@@ -1637,10 +1898,10 @@ const Dashboard = () => {
       {/* Create Event Modal */}
       {showCreateEventModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 shadow-sm space-y-4">
+          <div className="w-full max-w-md bg-[#141111] rounded-lg border border-[#5C4E4E]/55 p-6 shadow-sm space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="font-bold text-sm text-gray-900 dark:text-white">Create Event</h3>
-              <button onClick={() => setShowCreateEventModal(false)} className="text-gray-400 hover:text-gray-600">
+              <h3 className="font-bold text-sm text-[#D1D0D0]">Create Event</h3>
+              <button onClick={() => setShowCreateEventModal(false)} className="text-[#988686] hover:text-[#988686]">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -1664,10 +1925,10 @@ const Dashboard = () => {
       {/* Create Community Modal */}
       {showCreateCommunity && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 shadow-sm space-y-4">
+          <div className="w-full max-w-md bg-[#141111] rounded-lg border border-[#5C4E4E]/55 p-6 shadow-sm space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="font-bold text-sm text-gray-900 dark:text-white">Create Community</h3>
-              <button onClick={() => setShowCreateCommunity(false)} className="text-gray-400 hover:text-gray-600">
+              <h3 className="font-bold text-sm text-[#D1D0D0]">Create Community</h3>
+              <button onClick={() => setShowCreateCommunity(false)} className="text-[#988686] hover:text-[#988686]">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -1698,40 +1959,54 @@ const Dashboard = () => {
       {/* Browse All Communities Modal */}
       {showJoinCommunity && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className="w-full max-w-2xl bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 shadow-sm max-h-[80vh] flex flex-col">
-            <div className="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-gray-700">
-              <h3 className="font-bold text-sm text-gray-900 dark:text-white">All Skill Communities</h3>
-              <button onClick={() => setShowJoinCommunity(false)} className="text-gray-400 hover:text-gray-600">
+          <div className="w-full max-w-2xl bg-[#141111] rounded-lg border border-[#5C4E4E]/55 p-6 shadow-sm max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between pb-3 border-b border-[#5C4E4E]/40 gap-3">
+              <h3 className="font-bold text-sm text-[#D1D0D0] shrink-0">Discover communities</h3>
+              <button onClick={() => setShowJoinCommunity(false)} className="text-[#988686] hover:text-[#988686]">
                 <X className="w-4 h-4" />
               </button>
             </div>
+            <div className="pt-3">
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 absolute left-3 top-3 text-[#988686]" />
+                <input
+                  type="text"
+                  className="input-clean pl-9"
+                  placeholder="Search by name, domain, or description..."
+                  value={communitySearch}
+                  onChange={(e) => setCommunitySearch(e.target.value)}
+                />
+              </div>
+            </div>
             <div className="overflow-y-auto pt-4 space-y-3 flex-1">
               <div className="grid md:grid-cols-2 gap-3">
-                {allCommunities.map((c) => (
-                  <div key={c.id} className="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg border border-gray-200/60 dark:border-gray-600 flex flex-col justify-between">
+                {filteredAllCommunities.map((c) => (
+                  <div key={c.id} className="p-3 bg-[#1c1818] rounded-lg border border-[#5C4E4E]/45 flex flex-col justify-between">
                     <div>
-                      <span className="text-[10px] font-semibold bg-gray-200 dark:bg-gray-600 px-1.5 py-0.5 rounded text-gray-700 dark:text-gray-300 mb-1 inline-block">{c.domain || 'Tech'}</span>
-                      <h4 className="font-semibold text-xs text-gray-900 dark:text-white">{c.name}</h4>
-                      <p className="text-[11px] text-gray-500 line-clamp-2 mt-1">{c.description}</p>
+                      <span className="text-[10px] font-semibold bg-gray-200 dark:bg-gray-600 px-1.5 py-0.5 rounded text-[#D1D0D0] mb-1 inline-block">{c.domain || 'Tech'}</span>
+                      <h4 className="font-semibold text-xs text-[#D1D0D0]">{c.name}</h4>
+                      <p className="text-[11px] text-[#988686] line-clamp-2 mt-1">{c.description}</p>
                     </div>
-                    <div className="mt-3 flex items-center justify-between pt-2 border-t border-gray-200/60 dark:border-gray-600">
-                      <span className="text-[11px] text-gray-500">{c.member_count} members</span>
+                    <div className="mt-3 flex items-center justify-between pt-2 border-t border-[#5C4E4E]/45">
+                      <span className="text-[11px] text-[#988686]">{c.member_count} members</span>
                       {c.is_member ? (
-                        <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">Joined</span>
+                        <button onClick={() => { setSelectedCommunity(c); setShowJoinCommunity(false); }} className="px-2.5 py-1 text-[11px] font-semibold bg-[#D1D0D0] text-black rounded-md">Open</button>
                       ) : (
-                        <button onClick={() => joinCommunity(c.id)} className="btn-primary px-2.5 py-1">
-                          Join
-                        </button>
+                        <button onClick={() => joinCommunity(c.id)} className="px-2.5 py-1 text-[11px] font-semibold border border-[#5C4E4E] rounded-md hover:bg-[#141111]">Join</button>
                       )}
                     </div>
                   </div>
                 ))}
+                {filteredAllCommunities.length === 0 && (
+                  <div className="col-span-full py-8 text-center text-xs text-[#988686]">
+                    {communitySearch.trim() ? 'No communities match your search.' : 'No communities available yet.'}
+                  </div>
+                )}
               </div>
             </div>
           </div>
         </div>
       )}
-
       {/* View Community Component */}
       {selectedCommunity && (
         <ViewCommunity 
@@ -1749,7 +2024,7 @@ const Dashboard = () => {
       {/* Notification Toast */}
       {joinSuccess.open && (
         <div className="fixed bottom-5 right-5 z-50">
-          <div className="px-3.5 py-2 rounded-lg bg-slate-900 text-white text-xs font-semibold shadow-lg flex items-center gap-2">
+          <div className="px-3.5 py-2 rounded-lg bg-[#D1D0D0] text-black text-xs font-semibold shadow-lg flex items-center gap-2">
             <Check className="w-3.5 h-3.5" /> {joinSuccess.message}
           </div>
         </div>

@@ -178,7 +178,7 @@ const MembersList = ({ communityId, isAdmin, onMembersCountChange }) => {
           <h4 className="text-xs font-bold text-amber-800 dark:text-amber-300 uppercase tracking-wider">Pending Join Requests</h4>
           <div className="space-y-2">
             {pendingRequests.map((request) => (
-              <div key={request.id} className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700">
+              <div key={request.id} className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-md border border-gray-200 border-[#5C4E4E]/45">
                 <div className="flex items-center gap-3">
                   <Avatar className="w-8 h-8">
                     <AvatarFallback className="bg-slate-800 text-white text-xs">{request.avatar}</AvatarFallback>
@@ -208,10 +208,10 @@ const MembersList = ({ communityId, isAdmin, onMembersCountChange }) => {
       {/* Members Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
         {filteredMembers.map((member) => (
-          <div key={member.id} className="bg-white dark:bg-gray-800/90 border border-gray-200/80 dark:border-gray-700/80 rounded-lg p-4 flex flex-col justify-between">
+          <div key={member.id} className="bg-white dark:bg-gray-800/90 border border-gray-200/80 border-[#5C4E4E]/45/80 rounded-lg p-4 flex flex-col justify-between">
             <div className="flex items-start gap-3">
-              <Avatar className="w-10 h-10 border border-gray-200 dark:border-gray-700 shrink-0">
-                <AvatarFallback className="bg-slate-100 dark:bg-gray-700 text-slate-800 dark:text-gray-200 text-xs font-bold">
+              <Avatar className="w-10 h-10 border border-gray-200 border-[#5C4E4E]/45 shrink-0">
+                <AvatarFallback className="bg-[#D1D0D0] dark:bg-gray-700 text-slate-800 dark:text-gray-200 text-xs font-bold">
                   {member.avatar}
                 </AvatarFallback>
               </Avatar>
@@ -227,7 +227,7 @@ const MembersList = ({ communityId, isAdmin, onMembersCountChange }) => {
                 {Array.isArray(member.skills) && member.skills.length > 0 && (
                   <div className="flex flex-wrap gap-1 mb-2">
                     {member.skills.slice(0, 3).map((skill, index) => (
-                      <span key={index} className="text-[10px] bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-1.5 py-0.5 rounded font-medium">
+                      <span key={index} className="text-[10px] bg-[#5C4E4E]/35 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-1.5 py-0.5 rounded font-medium">
                         {skill}
                       </span>
                     ))}
@@ -236,7 +236,7 @@ const MembersList = ({ communityId, isAdmin, onMembersCountChange }) => {
               </div>
             </div>
 
-            <div className="pt-2 border-t border-gray-100 dark:border-gray-700/80 flex items-center justify-between text-[11px] text-gray-400 mt-2">
+            <div className="pt-2 border-t border-gray-100 border-[#5C4E4E]/45/80 flex items-center justify-between text-[11px] text-gray-400 mt-2">
               <span className="font-mono">{member.points} pts</span>
               {isAdmin && !member.isAdmin && (
                 <button 

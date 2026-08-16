@@ -15,9 +15,7 @@ import {
   UserCheck,
   UserX,
   Crown,
-  Star,
-  AlertTriangle,
-  CheckCircle
+  AlertTriangle
 } from 'lucide-react';
 
 const AdminPanel = ({ communityId, communityData, setCommunityData }) => {
@@ -430,76 +428,33 @@ const AdminPanel = ({ communityId, communityData, setCommunityData }) => {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Settings className="w-5 h-5 text-indigo-500" />
+                <Settings className="w-5 h-5 text-gray-500" />
                 Community Settings
               </CardTitle>
-              <CardDescription>Manage community configuration and permissions</CardDescription>
+              <CardDescription>Current community configuration</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium mb-2">Community Name</label>
-                  <Input value={communityData.name} readOnly />
+                  <label className="block text-sm font-medium mb-2 text-gray-700">Community Name</label>
+                  <Input value={communityData.name} readOnly className="bg-gray-50 text-gray-600" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-2">Member Count</label>
-                  <Input value={communityData.memberCount} readOnly />
+                  <label className="block text-sm font-medium mb-2 text-gray-700">Total Members</label>
+                  <Input value={communityData.memberCount} readOnly className="bg-gray-50 text-gray-600" />
                 </div>
               </div>
-              
+
               <div>
-                <label className="block text-sm font-medium mb-2">Community Description</label>
-                <Textarea 
-                  value={communityData.mission} 
-                  readOnly 
-                  className="h-20"
-                />
+                <label className="block text-sm font-medium mb-2 text-gray-700">Admin</label>
+                <Input value={communityData.adminName} readOnly className="bg-gray-50 text-gray-600" />
               </div>
 
-              <div className="space-y-4">
-                <h4 className="font-semibold">Community Permissions</h4>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                    <div>
-                      <div className="font-medium">Member Invitations</div>
-                      <div className="text-sm text-gray-500">Allow members to invite others</div>
-                    </div>
-                    <Badge className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
-                      <CheckCircle className="w-3 h-3 mr-1" />
-                      Enabled
-                    </Badge>
-                  </div>
-                  
-                  <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                    <div>
-                      <div className="font-medium">Public Events</div>
-                      <div className="text-sm text-gray-500">Allow public event creation</div>
-                    </div>
-                    <Badge className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
-                      <CheckCircle className="w-3 h-3 mr-1" />
-                      Enabled
-                    </Badge>
-                  </div>
-                  
-                  <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                    <div>
-                      <div className="font-medium">Chat Moderation</div>
-                      <div className="text-sm text-gray-500">Require admin approval for messages</div>
-                    </div>
-                    <Badge className="bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300">
-                      Disabled
-                    </Badge>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-                <Button className="bg-indigo-600 hover:bg-indigo-700">
-                  Save Settings
-                </Button>
-                <Button variant="outline">
-                  Reset to Defaults
-                </Button>
+              <div className="p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                <p className="text-xs font-semibold text-amber-800 dark:text-amber-300 mb-1">Community management</p>
+                <p className="text-xs text-amber-700 dark:text-amber-400">
+                  To update community name, description, or domain, edit it from the Profile tab. Member management is available in the Members tab.
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -514,7 +469,7 @@ const AdminPanel = ({ communityId, communityData, setCommunityData }) => {
       {showEventModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowEventModal(false)} />
-          <div className="relative bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 w-full max-w-lg p-6 shadow-xl">
+          <div className="relative bg-white dark:bg-gray-800 rounded-xl border border-gray-200 border-[#5C4E4E]/45 w-full max-w-lg p-6 shadow-xl">
             <h3 className="text-xl font-semibold mb-4">Create Event</h3>
             <form onSubmit={handleCreateEvent} className="space-y-4">
               <div>
@@ -552,7 +507,7 @@ const AdminPanel = ({ communityId, communityData, setCommunityData }) => {
       {showAnnouncementModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowAnnouncementModal(false)} />
-          <div className="relative bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 w-full max-w-lg p-6 shadow-xl">
+          <div className="relative bg-white dark:bg-gray-800 rounded-xl border border-gray-200 border-[#5C4E4E]/45 w-full max-w-lg p-6 shadow-xl">
             <h3 className="text-xl font-semibold mb-4">Create Announcement</h3>
             <form onSubmit={handleCreateAnnouncement} className="space-y-4">
               <div>
