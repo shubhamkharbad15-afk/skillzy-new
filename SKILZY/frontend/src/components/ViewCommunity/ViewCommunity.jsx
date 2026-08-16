@@ -81,7 +81,7 @@ const ViewCommunity = ({ community, onClose, isAdmin = false }) => {
             </div>
             <div className="min-w-0">
               <h2 className="text-lg font-bold text-[#D1D0D0] leading-tight truncate">{communityData.name}</h2>
-              <p className="text-xs text-[#988686] truncate">{communityData.memberCount} members{communityData.domain ? ` Â· ${communityData.domain}` : ''} Â· Admin: {communityData.adminName}</p>
+              <p className="text-xs text-[#988686] truncate">{communityData.memberCount} members{communityData.domain ? ` · ${communityData.domain}` : ''} · Admin: {communityData.adminName}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">

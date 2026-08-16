@@ -1,18 +1,32 @@
 import httpx
 from datetime import timedelta, datetime
 from typing import Optional
-from fastapi import FastAPI, Depends, HTTPException, status, Request
+from contextlib import asynccontextmanager
+from fastapi import FastAPI, Depends, HTTPException, status, Request, BackgroundTasks
 from fastapi.responses import RedirectResponse
 from fastapi import WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
 from bson import ObjectId
+import asyncio
 
 import crud, schemas, auth
 from database import get_db, database
 from config import settings
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Preload embedding model in a worker thread so first profile save is fast
+    try:
+        from ml_model import _get_model
+        asyncio.create_task(asyncio.to_thread(_get_model))
+    except Exception as exc:
+        print(f"ML model preload skipped: {exc}")
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
 
 # Broaden CORS for local development: localhost, 127.0.0.1, and common LAN ranges
 app.add_middleware(
@@ -95,10 +109,26 @@ async def read_users_me(current_user: dict = Depends(auth.get_current_user)):
     return current_user
 
 @app.post("/users/me/profile", response_model=schemas.UserInDB)
-async def update_profile(profile_data: schemas.ProfileUpdate, current_user: dict = Depends(auth.get_current_user), db = Depends(get_db)):
-    updated_user = await crud.update_user_profile(database, current_user["email"], profile_data)
+async def update_profile(
+    profile_data: schemas.ProfileUpdate,
+    background_tasks: BackgroundTasks,
+    current_user: dict = Depends(auth.get_current_user),
+    db = Depends(get_db),
+):
+    updated_user = await crud.update_user_profile(
+        database,
+        current_user["email"],
+        profile_data,
+        defer_embedding=True,
+    )
     if updated_user is None:
         raise HTTPException(status_code=404, detail="User not found")
+    background_tasks.add_task(
+        crud.generate_user_embedding,
+        database,
+        current_user["email"],
+        profile_data,
+    )
     return updated_user
 
 async def get_user_connections_status(user_email: str, current_user_id: str):
@@ -148,38 +178,68 @@ async def search_matches(query: Optional[str] = None, current_user: dict = Depen
     results_list = []
     query_str = (query or "").strip().lower()
 
+    def _overlap_score(candidate: dict) -> float:
+        """Fallback 0–1 score from shared skills/interests when embeddings are missing."""
+        user_skills = {str(s).strip().lower() for s in (current_user.get("skills") or []) if s}
+        user_interests = {str(s).strip().lower() for s in (current_user.get("interests") or []) if s}
+        cand_skills = {str(s).strip().lower() for s in (candidate.get("skills") or []) if s}
+        cand_interests = {str(s).strip().lower() for s in (candidate.get("interests") or []) if s}
+        skill_overlap = len(user_skills & cand_skills)
+        interest_overlap = len(user_interests & cand_interests)
+        denom = max(len(user_skills | cand_skills), 1) + max(len(user_interests | cand_interests), 1)
+        raw = (skill_overlap * 2 + interest_overlap) / denom
+        # Keep fallback readable but never fake a fixed percentage
+        return max(0.15, min(0.95, 0.35 + raw * 0.6))
+
+    def _score_with_embeddings(query_embedding, candidates: list) -> list:
+        from sentence_transformers import util
+        import torch
+
+        scored = []
+        users_with_emb = [u for u in candidates if u.get("embedding")]
+        matched_ids = set()
+        if users_with_emb:
+            corpus_tensor = torch.tensor([u["embedding"] for u in users_with_emb], dtype=torch.float32)
+            hits = util.semantic_search(query_embedding, corpus_tensor, top_k=min(50, len(users_with_emb)))[0]
+            for hit in hits:
+                u = users_with_emb[hit["corpus_id"]]
+                matched_ids.add(str(u["_id"]))
+                # Cosine similarity from the model (typically ~0.05–0.95)
+                u["match_score"] = max(0.0, min(1.0, float(hit["score"])))
+                scored.append(u)
+        for u in candidates:
+            if str(u["_id"]) not in matched_ids:
+                u["match_score"] = _overlap_score(u)
+                scored.append(u)
+        return scored
+
     if query_str:
         try:
             from ml_model import generate_embedding
-            from sentence_transformers import util
-            import torch
 
             query_embedding = generate_embedding(query_str, convert_to_tensor=True)
-            users_with_emb = [u for u in candidate_users if u.get("embedding")]
-            matched_ids = set()
-            if users_with_emb:
-                corpus_tensor = torch.tensor([u["embedding"] for u in users_with_emb])
-                hits = util.semantic_search(query_embedding, corpus_tensor, top_k=50)[0]
-                for hit in hits:
-                    u = users_with_emb[hit["corpus_id"]]
-                    matched_ids.add(str(u["_id"]))
-                    u["match_score"] = float(hit["score"])
-                    results_list.append(u)
+            results_list = _score_with_embeddings(query_embedding, candidate_users)
 
-            # Text search fallback/enrichment
+            # Text search enrichment for candidates the vector search ranked low / missed
+            matched_ids = {str(u["_id"]) for u in results_list if u.get("match_score", 0) >= 0.2}
             for u in candidate_users:
-                if str(u["_id"]) not in matched_ids:
-                    name_str = f"{u.get('first_name', '')} {u.get('last_name', '')}".lower()
-                    skills_str = " ".join(u.get("skills", [])).lower()
-                    interests_str = " ".join(u.get("interests", [])).lower()
-                    loc_str = str(u.get("location", "")).lower()
-                    title_str = str(u.get("title", "")).lower()
-                    bio_str = str(u.get("bio", "")).lower()
-                    
-                    if any(query_str in text for text in [name_str, skills_str, interests_str, loc_str, title_str, bio_str]):
-                        u["match_score"] = 0.75
+                if str(u["_id"]) in matched_ids:
+                    continue
+                name_str = f"{u.get('first_name', '')} {u.get('last_name', '')}".lower()
+                skills_str = " ".join(u.get("skills", [])).lower()
+                interests_str = " ".join(u.get("interests", [])).lower()
+                loc_str = str(u.get("location", "")).lower()
+                title_str = str(u.get("title", "")).lower()
+                bio_str = str(u.get("bio", "")).lower()
+                if any(query_str in text for text in [name_str, skills_str, interests_str, loc_str, title_str, bio_str]):
+                    # Prefer higher of existing ML score vs text hit boost
+                    text_score = 0.55 + (0.1 if query_str in skills_str else 0) + (0.05 if query_str in title_str else 0)
+                    existing = float(u.get("match_score") or 0)
+                    u["match_score"] = max(existing, min(0.92, text_score))
+                    if u not in results_list:
                         results_list.append(u)
-        except Exception:
+        except Exception as exc:
+            print(f"Search embedding failed, using text/overlap fallback: {exc}")
             for u in candidate_users:
                 name_str = f"{u.get('first_name', '')} {u.get('last_name', '')}".lower()
                 skills_str = " ".join(u.get("skills", [])).lower()
@@ -188,12 +248,53 @@ async def search_matches(query: Optional[str] = None, current_user: dict = Depen
                 title_str = str(u.get("title", "")).lower()
                 bio_str = str(u.get("bio", "")).lower()
                 if any(query_str in text for text in [name_str, skills_str, interests_str, loc_str, title_str, bio_str]):
-                    u["match_score"] = 0.80
+                    u["match_score"] = _overlap_score(u)
                     results_list.append(u)
     else:
-        for u in candidate_users:
-            u["match_score"] = 0.85
-            results_list.append(u)
+        # Default Find Buddies: rank by similarity to the current user's profile embedding
+        try:
+            import torch
+            from ml_model import generate_embedding, create_profile_text
+            import schemas as _schemas
+
+            current_emb = current_user.get("embedding")
+            if not current_emb and (current_user.get("skills") or current_user.get("bio") or current_user.get("title")):
+                # Generate embedding on the fly if background job hasn't finished yet
+                try:
+                    profile_proxy = _schemas.ProfileUpdate(
+                        title=current_user.get("title") or "Member",
+                        company=current_user.get("company"),
+                        location=current_user.get("location"),
+                        bio=current_user.get("bio") or "",
+                        careerGoals=current_user.get("careerGoals"),
+                        skills=current_user.get("skills") or [],
+                        interests=current_user.get("interests") or [],
+                    )
+                    profile_text = create_profile_text(profile_proxy)
+                    current_emb = generate_embedding(profile_text)
+                    await database["users"].update_one(
+                        {"email": user_email},
+                        {"$set": {"embedding": current_emb}},
+                    )
+                except Exception as emb_exc:
+                    print(f"On-demand embedding for current user failed: {emb_exc}")
+                    current_emb = None
+
+            if current_emb:
+                query_embedding = torch.tensor(current_emb, dtype=torch.float32)
+                results_list = _score_with_embeddings(query_embedding, candidate_users)
+            else:
+                for u in candidate_users:
+                    u["match_score"] = _overlap_score(u)
+                    results_list.append(u)
+        except Exception as exc:
+            print(f"Recommendation scoring failed, using overlap fallback: {exc}")
+            for u in candidate_users:
+                u["match_score"] = _overlap_score(u)
+                results_list.append(u)
+
+    # Sort highest match first
+    results_list.sort(key=lambda u: float(u.get("match_score") or 0), reverse=True)
 
     formatted_results = []
     for u in results_list:
@@ -206,10 +307,12 @@ async def search_matches(query: Optional[str] = None, current_user: dict = Depen
         
         conn_info = conn_map.get(uemail) or conn_map.get(uid) or {"status": "none", "request_id": None}
         
-        score_val = u.get("match_score", 0.85)
-        score_pct = int(round(score_val * 100)) if score_val <= 1.0 else int(round(score_val))
-        if score_pct < 50: score_pct = 50 + (len(shared_skills) * 8)
-        if score_pct > 98: score_pct = 98
+        score_val = float(u.get("match_score") or 0)
+        if score_val <= 1.0:
+            score_pct = int(round(score_val * 100))
+        else:
+            score_pct = int(round(score_val))
+        score_pct = max(1, min(99, score_pct))
         
         fname = u.get("first_name", "") or ""
         lname = u.get("last_name", "") or ""

@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import ViewCommunity from './ViewCommunity/ViewCommunity';
 import { fetchWithAuth } from '../lib/api';
+import { getOrgFieldMeta } from '../lib/profileFields';
 import { 
   Users, 
   Calendar, 
@@ -675,9 +676,9 @@ const Dashboard = () => {
           <div className="flex items-center space-x-4 md:space-x-6">
             <div className="hidden lg:flex items-center space-x-4 text-xs text-[#988686] font-medium">
               <span>Connections: <strong className="text-[#D1D0D0]">{networkSummary.connections}</strong></span>
-              <span className="text-gray-300 dark:text-[#D1D0D0]">Â·</span>
+              <span className="text-[#5C4E4E]">·</span>
               <span>Communities: <strong className="text-[#D1D0D0]">{networkSummary.communities}</strong></span>
-              <span className="text-gray-300 dark:text-[#D1D0D0]">Â·</span>
+              <span className="text-[#5C4E4E]">·</span>
               <span>Events: <strong className="text-[#D1D0D0]">{networkSummary.eventsAttended}</strong></span>
             </div>
             
@@ -719,14 +720,14 @@ const Dashboard = () => {
         {/* Sidebar — responsive: hidden on mobile, shown as overlay; always visible md+ */}
         <aside className={`
           fixed md:static top-0 left-0 h-full md:h-auto z-30 md:z-auto
-          w-60 md:w-56
+          w-60 md:w-56 shrink-0
           border-r border-[#5C4E4E]/55
           bg-[#0a0909]
           md:min-h-[calc(100vh-57px)]
-          p-3
+          px-2.5 py-3
           transform transition-transform duration-200 ease-in-out
           ${sidebarOpen ? 'translate-x-0 shadow-xl' : '-translate-x-full md:translate-x-0'}
-          pt-16 md:pt-3
+          pt-16 md:pt-4
         `}>
           {/* Mobile close + sign out */}
           <div className="md:hidden flex items-center justify-between mb-3 px-1">
@@ -745,7 +746,7 @@ const Dashboard = () => {
             </button>
           </div>
 
-          <nav className="space-y-0.5">
+          <nav className="flex flex-col gap-0.5">
             {sidebarItems.map((item) => {
               const isActive = activeTab === item.id;
               return (
@@ -754,9 +755,9 @@ const Dashboard = () => {
                   onClick={() => { setActiveTab(item.id); setSidebarOpen(false); }}
                   className={isActive ? 'nav-item-active w-full' : 'nav-item w-full'}
                 >
-                  <div className="flex items-center space-x-2.5">
-                    <item.icon className={`w-4 h-4 ${isActive ? 'text-black dark:text-[#D1D0D0]' : 'text-[#988686]'}`} />
-                    <span>{item.label}</span>
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <item.icon className={`w-[18px] h-[18px] shrink-0 ${isActive ? 'text-[#D1D0D0]' : 'text-[#988686]'}`} strokeWidth={1.75} />
+                    <span className="truncate">{item.label}</span>
                   </div>
                   {item.id === "notifications" && unreadNotifCount > 0 && (
                     <span className="bg-[#5C4E4E]/45 text-[#D1D0D0] dark:bg-[#5C4E4E]/45 text-[#D1D0D0] text-[10px] font-bold px-1.5 py-0.5 rounded">
@@ -775,59 +776,56 @@ const Dashboard = () => {
         </aside>
 
         {/* Main Content Area */}
-        <main className="flex-1 p-6 md:p-8 min-w-0">
+        <main className="flex-1 px-4 py-6 sm:px-6 md:px-8 md:py-8 min-w-0">
           {/* DASHBOARD TAB */}
           {activeTab === "dashboard" && (
-            <div className="space-y-8">
+            <div className="space-y-7 w-full">
               {/* Editorial Welcome Section */}
-              <div className="bg-[#141111] text-[#D1D0D0] rounded-lg p-6 md:p-8 border border-[#5C4E4E]/55 border-[#5C4E4E]/45">
-                <div className="max-w-3xl">
-                  <span className="text-[11px] font-mono tracking-wider uppercase text-[#988686] mb-2 block">
-                    Skillzy Workspace
-                  </span>
-                  <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight mb-2">
-                    Welcome back, {displayName}.
-                  </h1>
-                  <p className="text-[#988686] text-xs md:text-sm leading-relaxed mb-6">
-                    Connect with peer engineers, tackle active challenges, and collaborate within skill-focused communities.
-                  </p>
-                  
-                  {/* Subtle Profile Completion Bar */}
-                  <div className="bg-[#0a0909]/90 border border-[#5C4E4E]/80 border-[#5C4E4E]/45 rounded-lg p-3.5 flex flex-col sm:flex-row items-center justify-between gap-4">
-                    <div className="flex-1 w-full">
-                      <div className="flex justify-between text-xs font-medium text-[#988686] mb-1.5">
-                        <span>Profile Completion</span>
-                        <span className="font-mono">{calculateProfileCompletion()}%</span>
-                      </div>
-                      <div className="w-full bg-[#5C4E4E]/50 rounded-full h-1.5">
-                        <div className="bg-[#D1D0D0] h-1.5 rounded-full transition-all duration-300" style={{ width: `${calculateProfileCompletion()}%` }} />
-                      </div>
+              <div className="bg-[#141111] text-[#D1D0D0] rounded-lg p-5 sm:p-6 md:p-7 border border-[#5C4E4E]/55">
+                <span className="text-[11px] font-mono tracking-wider uppercase text-[#988686] mb-2 block">
+                  Skillzy Workspace
+                </span>
+                <h1 className="text-2xl md:text-[1.75rem] font-bold tracking-tight mb-2">
+                  Welcome back, {displayName}.
+                </h1>
+                <p className="text-[#988686] text-sm leading-relaxed mb-5 max-w-2xl">
+                  Find people with shared skills, join communities, and stay on top of events and challenges.
+                </p>
+
+                <div className="bg-[#0a0909] border border-[#5C4E4E]/55 rounded-lg p-3.5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+                  <div className="flex-1 w-full min-w-0">
+                    <div className="flex justify-between text-xs font-medium text-[#988686] mb-1.5">
+                      <span>Profile completion</span>
+                      <span className="font-mono">{calculateProfileCompletion()}%</span>
                     </div>
-                    {calculateProfileCompletion() < 100 && (
-                      <button onClick={() => setActiveTab('profile')} className="px-3 py-1.5 text-xs font-semibold bg-[#D1D0D0] text-black hover:bg-[#e8e7e7] rounded-md transition shrink-0">
-                        Complete Profile
-                      </button>
-                    )}
+                    <div className="w-full bg-[#5C4E4E]/50 rounded-full h-1.5">
+                      <div className="bg-[#D1D0D0] h-1.5 rounded-full transition-all duration-300" style={{ width: `${calculateProfileCompletion()}%` }} />
+                    </div>
                   </div>
+                  {calculateProfileCompletion() < 100 && (
+                    <button onClick={() => setActiveTab('profile')} className="px-3 py-1.5 text-xs font-semibold bg-[#D1D0D0] text-black hover:bg-[#e8e7e7] rounded-md transition shrink-0 self-start sm:self-auto">
+                      Complete profile
+                    </button>
+                  )}
                 </div>
               </div>
 
-              {/* Quick Actions Grid - Restrained Minimal Cards */}
+              {/* Quick Actions Grid */}
               <div>
-                <h3 className="text-xs font-bold text-[#988686] uppercase tracking-wider mb-3">
-                  Quick Navigation
+                <h3 className="section-title mb-3">
+                  Quick navigation
                 </h3>
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                   {quickAccessItems.map((item) => (
                     <button
                       key={item.id}
                       onClick={() => setActiveTab(item.tab)}
-                      className="flex items-center space-x-2.5 px-4 py-3 bg-[#141111] border border-[#5C4E4E]/55/60 border-[#5C4E4E]/45/60 rounded-md hover:bg-[#1c1818] transition text-left"
+                      className="flex items-center gap-2.5 px-3.5 py-3 bg-[#141111] border border-[#5C4E4E]/55 rounded-md hover:bg-[#1c1818] transition text-left"
                     >
-                      <item.icon className="w-4 h-4 text-[#988686] shrink-0" />
+                      <item.icon className="w-4 h-4 text-[#988686] shrink-0" strokeWidth={1.75} />
                       <div className="min-w-0">
-                        <p className="font-medium text-xs text-[#D1D0D0]">{item.title}</p>
-                        <p className="text-[10px] text-[#988686]">{item.description}</p>
+                        <p className="font-medium text-[0.9375rem] text-[#D1D0D0] leading-tight">{item.title}</p>
+                        <p className="text-xs text-[#988686] mt-0.5 truncate">{item.description}</p>
                       </div>
                     </button>
                   ))}
@@ -838,13 +836,13 @@ const Dashboard = () => {
               <div className="grid lg:grid-cols-3 gap-6">
                 {/* Left Column: Recommended Skill Matches */}
                 <div className="lg:col-span-2 space-y-4">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-3">
                     <div>
-                      <h2 className="text-base font-bold text-[#D1D0D0]">Discovery</h2>
-                      <p className="text-xs text-[#988686]">People matched to your skills and interests</p>
+                      <h2 className="content-title">Discovery</h2>
+                      <p className="content-subtitle">People matched to your skills and interests</p>
                     </div>
-                    <button onClick={() => setActiveTab('find-match')} className="text-xs font-semibold text-[#D1D0D0] hover:underline">
-                      Explore All
+                    <button onClick={() => setActiveTab('find-match')} className="text-sm font-medium text-[#D1D0D0] hover:underline shrink-0">
+                      Find buddies
                     </button>
                   </div>
 
@@ -853,29 +851,29 @@ const Dashboard = () => {
                       <div key={user.id} className="bg-[#141111] border border-[#5C4E4E]/55 rounded-lg p-4 flex flex-col justify-between">
                         <div>
                           <div className="flex items-start space-x-3 mb-3">
-                            <Avatar className="w-10 h-10 border border-[#5C4E4E]/55">
+                            <Avatar className="w-11 h-11 border border-[#5C4E4E]/55">
                               {user.avatar_url ? (<AvatarImage src={user.avatar_url} />) : (
-                                <AvatarFallback className="bg-[#D1D0D0] bg-[#5C4E4E]/50 text-[#D1D0D0] text-[#D1D0D0] text-xs font-bold">
+                                <AvatarFallback className="bg-[#5C4E4E]/50 text-[#D1D0D0] text-sm font-bold">
                                   {user.avatar}
                                 </AvatarFallback>
                               )}
                             </Avatar>
                             <div className="flex-1 min-w-0">
-                              <div className="flex items-center justify-between">
-                                <h4 className="font-bold text-xs truncate text-[#D1D0D0]">{user.name}</h4>
-                                <span className="text-[11px] font-mono font-semibold text-[#988686] dark:text-[#988686] bg-[#5C4E4E]/40 px-1.5 py-0.5 rounded">
+                              <div className="flex items-center justify-between gap-2">
+                                <h4 className="font-bold text-sm truncate text-[#D1D0D0]">{user.name}</h4>
+                                <span className="text-xs font-mono font-semibold text-[#988686] bg-[#5C4E4E]/40 px-1.5 py-0.5 rounded shrink-0">
                                   {user.matchScore}% match
                                 </span>
                               </div>
-                              <p className="text-[11px] text-[#988686] truncate">{user.title}</p>
-                              <p className="text-[10px] text-[#988686] flex items-center mt-0.5"><MapPin className="w-3 h-3 mr-0.5 text-[#988686]" /> {user.location}</p>
+                              <p className="text-sm text-[#988686] truncate">{user.title}</p>
+                              <p className="text-xs text-[#988686] flex items-center mt-0.5"><MapPin className="w-3.5 h-3.5 mr-0.5 text-[#988686]" /> {user.location}</p>
                             </div>
                           </div>
 
                           {user.skills && user.skills.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mb-3">
+                            <div className="flex flex-wrap gap-1.5 mb-3">
                               {user.skills.slice(0, 3).map(s => (
-                                <span key={s} className="text-[10px] bg-[#5C4E4E]/40/70 text-[#D1D0D0] px-2 py-0.5 rounded font-medium">
+                                <span key={s} className="text-xs bg-[#5C4E4E]/40 text-[#D1D0D0] px-2 py-0.5 rounded font-medium">
                                   {s}
                                 </span>
                               ))}
@@ -884,15 +882,15 @@ const Dashboard = () => {
                         </div>
 
                         <div className="flex gap-2 pt-3 border-t border-[#5C4E4E]/40">
-                          <button onClick={() => setSelectedUserModal(user)} className="flex-1 px-2.5 py-1 text-xs font-medium border border-[#5C4E4E] rounded-md hover:bg-[#1c1818] transition">
+                          <button onClick={() => setSelectedUserModal(user)} className="flex-1 px-2.5 py-1.5 text-sm font-medium border border-[#5C4E4E] rounded-md hover:bg-[#1c1818] transition">
                             View Profile
                           </button>
                           {user.connectionStatus === 'connected' ? (
-                            <span className="px-2.5 py-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 rounded-md">Connected</span>
+                            <span className="px-2.5 py-1.5 text-xs font-semibold text-emerald-400 bg-emerald-950/40 rounded-md">Connected</span>
                           ) : user.connectionStatus === 'requested_sent' ? (
-                            <span className="px-2.5 py-1 text-[11px] font-semibold text-[#D1D0D0] bg-amber-50 dark:bg-amber-950/40 rounded-md">Pending</span>
+                            <span className="px-2.5 py-1.5 text-xs font-semibold text-[#D1D0D0] bg-amber-950/40 rounded-md">Pending</span>
                           ) : (
-                            <button onClick={() => handleConnect(user)} className="px-3 py-1 text-xs font-semibold bg-[#D1D0D0] text-black rounded-md hover:bg-[#e8e7e7] transition">
+                            <button onClick={() => handleConnect(user)} className="px-3 py-1.5 text-sm font-semibold bg-[#D1D0D0] text-black rounded-md hover:bg-[#e8e7e7] transition">
                               Connect
                             </button>
                           )}
@@ -900,8 +898,9 @@ const Dashboard = () => {
                       </div>
                     ))}
                     {matches.length === 0 && (
-                      <div className="col-span-full p-6 text-center text-xs text-[#988686] bg-[#141111] rounded-lg border border-[#5C4E4E]/55">
-                        No matches yet. Complete your profile skills, then open Find Buddies.
+                      <div className="col-span-full p-6 text-center bg-[#141111] rounded-lg border border-[#5C4E4E]/55">
+                        <p className="text-base font-medium text-[#D1D0D0]">No matches yet</p>
+                        <p className="text-sm text-[#988686] mt-1">Add skills to your profile, then open Find Buddies.</p>
                       </div>
                     )}
                   </div>
@@ -911,21 +910,21 @@ const Dashboard = () => {
                 <div className="space-y-4">
                   <div className="bg-[#141111] border border-[#5C4E4E]/55 rounded-lg p-4">
                     <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-xs font-bold uppercase tracking-wider text-[#988686]">Network</h3>
-                      <button onClick={() => setActiveTab('connections')} className="text-[11px] font-medium text-[#D1D0D0] hover:underline">View all</button>
+                      <h3 className="section-title mb-0">Network</h3>
+                      <button onClick={() => setActiveTab('connections')} className="text-sm font-medium text-[#D1D0D0] hover:underline">View all</button>
                     </div>
                     {incomingRequests.length > 0 && (
                       <div className="mb-3 space-y-2">
-                        <p className="text-[10px] font-semibold uppercase tracking-wider text-[#D1D0D0]">Incoming requests</p>
+                        <p className="text-xs font-semibold uppercase tracking-wider text-[#D1D0D0]">Incoming requests</p>
                         {incomingRequests.slice(0, 2).map((r) => (
                           <div key={r.id} className="flex items-center justify-between gap-2 p-2 rounded-md bg-[#5C4E4E]/30 border border-[#5C4E4E]/55">
                             <div className="min-w-0">
-                              <p className="text-xs font-semibold truncate">{r.otherUser?.name || r.from}</p>
-                              <p className="text-[10px] text-[#988686] truncate">{r.otherUser?.title || 'Wants to connect'}</p>
+                              <p className="text-sm font-semibold truncate">{r.otherUser?.name || r.from}</p>
+                              <p className="text-xs text-[#988686] truncate">{r.otherUser?.title || 'Wants to connect'}</p>
                             </div>
                             <div className="flex gap-1 shrink-0">
-                              <button onClick={() => respondRequest(r.id, 'accept')} className="px-2 py-1 text-[10px] font-semibold bg-[#D1D0D0] text-black rounded">Accept</button>
-                              <button onClick={() => respondRequest(r.id, 'reject')} className="px-2 py-1 text-[10px] font-medium border border-[#5C4E4E] rounded">Decline</button>
+                              <button onClick={() => respondRequest(r.id, 'accept')} className="px-2 py-1 text-xs font-semibold bg-[#D1D0D0] text-black rounded">Accept</button>
+                              <button onClick={() => respondRequest(r.id, 'reject')} className="px-2 py-1 text-xs font-medium border border-[#5C4E4E] rounded">Decline</button>
                             </div>
                           </div>
                         ))}
@@ -935,48 +934,60 @@ const Dashboard = () => {
                       {connections.slice(0, 3).map((c) => (
                         <div key={c.id} className="flex items-center justify-between p-2 rounded-md hover:bg-[#1c1818] transition">
                           <div className="flex items-center space-x-2.5 min-w-0">
-                            <Avatar className="w-7 h-7">
+                            <Avatar className="w-8 h-8">
                               {c.avatar_url ? (<AvatarImage src={c.avatar_url} />) : (
-                                <AvatarFallback className="bg-[#5C4E4E]/40 bg-[#5C4E4E]/50 text-[#D1D0D0] text-[10px] font-bold">
+                                <AvatarFallback className="bg-[#5C4E4E]/50 text-[#D1D0D0] text-xs font-bold">
                                   {c.avatar || (c.name || 'U').slice(0, 2).toUpperCase()}
                                 </AvatarFallback>
                               )}
                             </Avatar>
                             <div className="min-w-0">
-                              <p className="text-xs font-semibold truncate leading-tight">{c.name}</p>
-                              <p className="text-[10px] text-[#988686] truncate">{c.title || c.email}</p>
+                              <p className="text-sm font-semibold truncate leading-tight">{c.name}</p>
+                              <p className="text-xs text-[#988686] truncate">{c.title || c.email}</p>
                             </div>
                           </div>
-                          <button onClick={() => setSelectedUserModal(c)} className="text-[11px] text-[#D1D0D0] font-medium hover:underline shrink-0">
+                          <button onClick={() => setSelectedUserModal(c)} className="text-sm text-[#D1D0D0] font-medium hover:underline shrink-0">
                             View
                           </button>
                         </div>
                       ))}
                       {connections.length === 0 && incomingRequests.length === 0 && (
-                        <p className="text-xs text-[#988686] py-3 text-center">No connections yet. Find buddies to start.</p>
+                        <div className="py-4 text-center px-2">
+                          <p className="text-sm font-medium text-[#D1D0D0]">No connections yet</p>
+                          <p className="text-sm text-[#988686] mt-1 mb-3">Discover people with similar skills and interests.</p>
+                          <button onClick={() => setActiveTab('find-match')} className="text-sm font-semibold text-[#D1D0D0] hover:underline">
+                            Find buddies
+                          </button>
+                        </div>
                       )}
                     </div>
                   </div>
 
                   <div className="bg-[#141111] border border-[#5C4E4E]/55 rounded-lg p-4">
                     <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-xs font-bold uppercase tracking-wider text-[#988686]">Communities</h3>
-                      <span className="text-xs font-mono text-[#988686]">{communities.length}</span>
+                      <h3 className="section-title mb-0">Communities</h3>
+                      <span className="text-sm font-mono text-[#988686]">{communities.length}</span>
                     </div>
                     <div className="space-y-2">
                       {communities.slice(0, 3).map((comm) => (
                         <div key={comm.id} className="flex items-center justify-between p-2 rounded-md hover:bg-[#1c1818] transition">
                           <div className="min-w-0">
-                            <p className="text-xs font-semibold truncate">{comm.name}</p>
-                            <p className="text-[10px] text-[#988686]">{comm.member_count} members â€¢ {comm.domain}</p>
+                            <p className="text-sm font-semibold truncate">{comm.name}</p>
+                            <p className="text-xs text-[#988686]">{comm.member_count} members · {comm.domain}</p>
                           </div>
-                          <button onClick={() => setSelectedCommunity(comm)} className="px-2.5 py-1 text-[11px] font-medium border border-[#5C4E4E] rounded-md hover:bg-[#1c1818] transition">
+                          <button onClick={() => setSelectedCommunity(comm)} className="px-2.5 py-1 text-xs font-medium border border-[#5C4E4E] rounded-md hover:bg-[#1c1818] transition">
                             Open
                           </button>
                         </div>
                       ))}
                       {communities.length === 0 && (
-                        <p className="text-xs text-[#988686] py-3 text-center">Not in any community yet.</p>
+                        <div className="py-4 text-center px-2">
+                          <p className="text-sm font-medium text-[#D1D0D0]">No communities yet</p>
+                          <p className="text-sm text-[#988686] mt-1 mb-3">Join a group around the skills you care about.</p>
+                          <button onClick={() => setActiveTab('communities')} className="text-sm font-semibold text-[#D1D0D0] hover:underline">
+                            Browse communities
+                          </button>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -986,59 +997,63 @@ const Dashboard = () => {
               {/* Learning + Activity */}
               <div className="grid lg:grid-cols-2 gap-6">
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-3">
                     <div>
-                      <h2 className="text-base font-bold text-[#D1D0D0]">Learning</h2>
-                      <p className="text-xs text-[#988686]">Events and challenges from your network</p>
+                      <h2 className="content-title">Learning</h2>
+                      <p className="content-subtitle">Events and challenges from your network</p>
                     </div>
-                    <button onClick={() => setActiveTab('events')} className="text-xs font-semibold text-[#D1D0D0] hover:underline">Events</button>
+                    <button onClick={() => setActiveTab('events')} className="text-sm font-medium text-[#D1D0D0] hover:underline shrink-0">Events</button>
                   </div>
                   <div className="space-y-2">
                     {events.slice(0, 3).map((e) => (
                       <div key={e.id} className="bg-[#141111] border border-[#5C4E4E]/55 rounded-lg p-3.5 flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="text-xs font-semibold text-[#D1D0D0] truncate">{e.title}</p>
-                          <p className="text-[11px] text-[#988686] mt-0.5">{e.date || 'TBA'}{e.time ? ` Â· ${e.time}` : ''} Â· {e.attendees_count || 0} attending</p>
+                          <p className="text-sm font-semibold text-[#D1D0D0] truncate">{e.title}</p>
+                          <p className="text-xs text-[#988686] mt-0.5">{e.date || 'TBA'}{e.time ? ` · ${e.time}` : ''} · {e.attendees_count || 0} attending</p>
                         </div>
-                        <button onClick={() => openEventModal(e.id)} className="text-[11px] font-medium text-[#D1D0D0] hover:underline shrink-0">Details</button>
+                        <button onClick={() => openEventModal(e.id)} className="text-sm font-medium text-[#D1D0D0] hover:underline shrink-0">Details</button>
                       </div>
                     ))}
                     {challenges.filter(c => c.is_joined).slice(0, 2).map((c) => (
                       <div key={c.id} className="bg-[#141111] border border-[#5C4E4E]/55 rounded-lg p-3.5 flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="text-xs font-semibold text-[#D1D0D0] truncate">{c.title}</p>
-                          <p className="text-[11px] text-[#988686] mt-0.5">Challenge Â· {c.difficulty || 'Medium'} Â· {c.points || 150} pts</p>
+                          <p className="text-sm font-semibold text-[#D1D0D0] truncate">{c.title}</p>
+                          <p className="text-xs text-[#988686] mt-0.5">Challenge · {c.difficulty || 'Medium'} · {c.points || 150} pts</p>
                         </div>
-                        <button onClick={() => openChallengeModal(c.id)} className="text-[11px] font-medium text-[#D1D0D0] hover:underline shrink-0">Open</button>
+                        <button onClick={() => openChallengeModal(c.id)} className="text-sm font-medium text-[#D1D0D0] hover:underline shrink-0">Open</button>
                       </div>
                     ))}
                     {events.length === 0 && challenges.filter(c => c.is_joined).length === 0 && (
-                      <div className="p-5 text-center text-xs text-[#988686] bg-[#141111] rounded-lg border border-[#5C4E4E]/55">
-                        No upcoming events or joined challenges yet.
+                      <div className="p-5 text-center bg-[#141111] rounded-lg border border-[#5C4E4E]/55">
+                        <p className="text-sm font-medium text-[#D1D0D0]">Nothing scheduled yet</p>
+                        <p className="text-sm text-[#988686] mt-1">Join an event or challenge to see it here.</p>
                       </div>
                     )}
                   </div>
                 </div>
 
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-3">
                     <div>
-                      <h2 className="text-base font-bold text-[#D1D0D0]">Activity</h2>
-                      <p className="text-xs text-[#988686]">Recent system notifications</p>
+                      <h2 className="content-title">Activity</h2>
+                      <p className="content-subtitle">Recent notifications</p>
                     </div>
-                    <button onClick={() => setActiveTab('notifications')} className="text-xs font-semibold text-[#D1D0D0] hover:underline">All</button>
+                    <button onClick={() => setActiveTab('notifications')} className="text-sm font-medium text-[#D1D0D0] hover:underline shrink-0">All</button>
                   </div>
                   <div className="bg-[#141111] border border-[#5C4E4E]/55 rounded-lg divide-y divide-[#5C4E4E]/40">
                     {notificationsData.slice(0, 5).map((n) => (
                       <div key={n.id} className={`px-4 py-3 ${n.read ? '' : 'bg-[#1c1818]/80'}`}>
-                        <p className="text-xs text-[#D1D0D0] font-medium leading-snug">{n.message}</p>
+                        <p className="text-sm text-[#D1D0D0] font-medium leading-snug">{n.message}</p>
                         {n.created_at && (
-                          <span className="text-[10px] text-[#988686] font-mono mt-1 block">{new Date(n.created_at).toLocaleString()}</span>
+                          <span className="text-xs text-[#988686] font-mono mt-1 block">{new Date(n.created_at).toLocaleString()}</span>
                         )}
                       </div>
                     ))}
                     {notificationsData.length === 0 && (
-                      <div className="p-5 text-center text-xs text-[#988686]">No recent activity yet.</div>
+                      <div className="p-5 text-center">
+                        <p className="text-sm font-medium text-[#D1D0D0]">No recent activity</p>
+                        <p className="text-sm text-[#988686] mt-1">Notifications will show up as you connect and join communities.</p>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -1052,8 +1067,8 @@ const Dashboard = () => {
               <div className="bg-[#141111] p-5 rounded-lg border border-[#5C4E4E]/55 space-y-4">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div>
-                    <h2 className="text-xl font-bold text-[#D1D0D0]">Find Skill Buddies</h2>
-                    <p className="text-xs text-[#988686] mt-0.5">Semantic match across real user profiles</p>
+                    <h2 className="page-title">Find Buddies</h2>
+                    <p className="page-subtitle">Match with people based on skills and interests</p>
                   </div>
 
                   <div className="flex items-center gap-2 w-full md:w-auto">
@@ -1076,12 +1091,12 @@ const Dashboard = () => {
 
                 {skillFilterOptions.length > 0 && (
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-[#988686] mb-2">Filter by skill</p>
+                    <p className="text-xs font-bold uppercase tracking-wider text-[#988686] mb-2">Filter by skill</p>
                     <div className="flex flex-wrap gap-1.5">
                       <button
                         type="button"
                         onClick={() => { setSelectedSkillFilter(""); handleFindMatch(""); }}
-                        className={`px-2.5 py-1 text-[11px] font-medium rounded-md border transition ${!selectedSkillFilter ? 'bg-[#D1D0D0] text-black border-[#D1D0D0]' : 'bg-[#0a0909] text-[#988686] border-[#5C4E4E]/55 hover:bg-black'}`}
+                        className={`px-2.5 py-1 text-xs font-medium rounded-md border transition ${!selectedSkillFilter ? 'bg-[#D1D0D0] text-black border-[#D1D0D0]' : 'bg-[#0a0909] text-[#988686] border-[#5C4E4E]/55 hover:bg-black'}`}
                       >
                         All
                       </button>
@@ -1094,7 +1109,7 @@ const Dashboard = () => {
                             setSelectedSkillFilter(next);
                             handleFindMatch(next);
                           }}
-                          className={`px-2.5 py-1 text-[11px] font-medium rounded-md border transition ${selectedSkillFilter === skill ? 'bg-[#D1D0D0] text-black border-[#D1D0D0]' : 'bg-[#0a0909] text-[#988686] border-[#5C4E4E]/55 hover:bg-black'}`}
+                          className={`px-2.5 py-1 text-xs font-medium rounded-md border transition ${selectedSkillFilter === skill ? 'bg-[#D1D0D0] text-black border-[#D1D0D0]' : 'bg-[#0a0909] text-[#988686] border-[#5C4E4E]/55 hover:bg-black'}`}
                         >
                           {skill}
                         </button>
@@ -1111,42 +1126,42 @@ const Dashboard = () => {
               {isFinding ? (
                 <div className="flex flex-col items-center justify-center py-16 text-[#988686] space-y-2">
                   <Loader2 className="w-6 h-6 animate-spin text-[#988686] dark:text-[#988686]" />
-                  <p className="text-xs font-medium">Matching vector embeddings...</p>
+                  <p className="text-sm font-medium">Finding people with similar skills...</p>
                 </div>
               ) : (
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {matches.map((user) => (
-                    <div key={user.id} className="bg-[#141111] border border-[#5C4E4E]/55 rounded-lg p-4 flex flex-col justify-between hover:border-[#5C4E4E] dark:hover:border-gray-600 transition">
+                    <div key={user.id} className="bg-[#141111] border border-[#5C4E4E]/55 rounded-lg p-4 flex flex-col justify-between hover:border-[#5C4E4E] transition">
                       <div>
                         <div className="flex items-start space-x-3 mb-3">
                           <Avatar className="w-12 h-12 border border-[#5C4E4E]/55">
                             {user.avatar_url ? (<AvatarImage src={user.avatar_url} />) : (
-                              <AvatarFallback className="bg-[#D1D0D0] bg-[#5C4E4E]/50 text-[#D1D0D0] text-[#D1D0D0] text-sm font-bold">
+                              <AvatarFallback className="bg-[#5C4E4E]/50 text-[#D1D0D0] text-sm font-bold">
                                 {user.avatar}
                               </AvatarFallback>
                             )}
                           </Avatar>
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between">
-                              <h4 className="font-bold text-sm truncate">{user.name}</h4>
-                              <span className="text-[10px] font-mono font-bold text-[#988686] dark:text-[#988686] bg-[#5C4E4E]/40 px-1.5 py-0.5 rounded">
+                            <div className="flex items-center justify-between gap-2">
+                              <h4 className="font-bold text-base truncate text-[#D1D0D0]">{user.name}</h4>
+                              <span className="text-xs font-mono font-bold text-[#988686] bg-[#5C4E4E]/40 px-1.5 py-0.5 rounded shrink-0">
                                 {user.matchScore}%
                               </span>
                             </div>
-                            <p className="text-xs text-[#988686] truncate">{user.title}</p>
-                            <p className="text-[11px] text-[#988686] flex items-center mt-0.5"><MapPin className="w-3 h-3 mr-0.5 text-[#988686]" />{user.location || 'Remote'}</p>
+                            <p className="text-sm text-[#988686] truncate">{user.title}</p>
+                            <p className="text-xs text-[#988686] flex items-center mt-0.5"><MapPin className="w-3.5 h-3.5 mr-0.5 text-[#988686]" />{user.location || 'Remote'}</p>
                           </div>
                         </div>
 
                         {user.bio && (
-                          <p className="text-xs text-[#988686] line-clamp-2 mb-3 italic">"{user.bio}"</p>
+                          <p className="text-sm text-[#988686] line-clamp-2 mb-3 italic">"{user.bio}"</p>
                         )}
 
                         {user.skills && user.skills.length > 0 && (
                           <div className="mb-4">
-                            <div className="flex flex-wrap gap-1">
+                            <div className="flex flex-wrap gap-1.5">
                               {user.skills.map((skill) => (
-                                <span key={skill} className="text-[10px] bg-[#5C4E4E]/40/70 text-[#D1D0D0] px-2 py-0.5 rounded font-medium">
+                                <span key={skill} className="text-xs bg-[#5C4E4E]/40 text-[#D1D0D0] px-2 py-0.5 rounded font-medium">
                                   {skill}
                                 </span>
                               ))}
@@ -1156,22 +1171,22 @@ const Dashboard = () => {
                       </div>
 
                       <div className="pt-3 border-t border-[#5C4E4E]/40 flex gap-2">
-                        <button onClick={() => setSelectedUserModal(user)} className="flex-1 px-3 py-1.5 text-xs font-medium border border-[#5C4E4E] rounded-md hover:bg-[#1c1818] transition">
+                        <button onClick={() => setSelectedUserModal(user)} className="flex-1 px-3 py-1.5 text-sm font-medium border border-[#5C4E4E] rounded-md hover:bg-[#1c1818] transition">
                           Profile
                         </button>
                         {user.connectionStatus === 'connected' ? (
-                          <span className="px-3 py-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 rounded-md">Connected</span>
+                          <span className="px-3 py-1.5 text-sm font-semibold text-emerald-400 bg-emerald-950/40 rounded-md">Connected</span>
                         ) : user.connectionStatus === 'requested_sent' ? (
-                          <button onClick={() => cancelRequest(user.requestId, user.email)} className="px-3 py-1.5 text-xs font-medium text-amber-700 border border-amber-300 rounded-md hover:bg-amber-50 transition">
-                            Cancel Request
+                          <button onClick={() => cancelRequest(user.requestId, user.email)} className="px-3 py-1.5 text-sm font-medium text-amber-400 border border-amber-700/50 rounded-md hover:bg-amber-950/30 transition">
+                            Cancel request
                           </button>
                         ) : user.connectionStatus === 'requested_received' ? (
-                          <button onClick={() => respondRequest(user.requestId, 'accept')} className="px-3 py-1.5 text-xs font-semibold bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition">
+                          <button onClick={() => respondRequest(user.requestId, 'accept')} className="px-3 py-1.5 text-sm font-semibold bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition">
                             Accept
                           </button>
                         ) : (
-                          <button onClick={() => handleConnect(user)} className="px-3 py-1.5 text-xs font-semibold bg-[#D1D0D0] text-black rounded-md hover:bg-[#e8e7e7] transition flex items-center justify-center">
-                            <UserPlus className="w-3.5 h-3.5 mr-1" /> Connect
+                          <button onClick={() => handleConnect(user)} className="px-3 py-1.5 text-sm font-semibold bg-[#D1D0D0] text-black rounded-md hover:bg-[#e8e7e7] transition flex items-center justify-center">
+                            <UserPlus className="w-4 h-4 mr-1" /> Connect
                           </button>
                         )}
                       </div>
@@ -1179,8 +1194,9 @@ const Dashboard = () => {
                   ))}
 
                   {matches.length === 0 && (
-                    <div className="col-span-full py-12 text-center text-xs text-[#988686] bg-[#141111] rounded-lg border border-[#5C4E4E]/55">
-                      No profiles found matching search query.
+                    <div className="col-span-full py-12 text-center bg-[#141111] rounded-lg border border-[#5C4E4E]/55">
+                      <p className="empty-state-title">No matches found</p>
+                      <p className="empty-state-body">Try a different skill filter, or update your profile skills and search again.</p>
                     </div>
                   )}
                 </div>
@@ -1192,14 +1208,14 @@ const Dashboard = () => {
           {activeTab === "connections" && (
             <div className="space-y-6">
               <div>
-                <h2 className="text-xl font-bold text-[#D1D0D0]">Connections</h2>
-                <p className="text-xs text-[#988686]">Incoming requests & verified skill connections</p>
+                <h2 className="page-title">Connections</h2>
+                <p className="page-subtitle">Requests and people you've connected with</p>
               </div>
 
               {/* Pending Received Requests */}
               <div className="bg-[#141111] border border-[#5C4E4E]/55 rounded-lg p-5">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-[#988686] mb-3">
-                  Incoming Connection Requests ({incomingRequests.length})
+                <h3 className="section-title mb-3">
+                  Incoming requests ({incomingRequests.length})
                 </h3>
                 <div className="space-y-2">
                   {incomingRequests.map((r) => (
@@ -1211,8 +1227,8 @@ const Dashboard = () => {
                           </AvatarFallback>
                         </Avatar>
                         <div>
-                          <h4 className="font-semibold text-xs">{r.otherUser?.name || r.from}</h4>
-                          <p className="text-[11px] text-[#988686]">{r.otherUser?.title || r.from}</p>
+                          <h4 className="font-semibold text-sm">{r.otherUser?.name || r.from}</h4>
+                          <p className="text-xs text-[#988686]">{r.otherUser?.title || r.from}</p>
                         </div>
                       </div>
                       <div className="flex gap-2">
@@ -1226,15 +1242,18 @@ const Dashboard = () => {
                     </div>
                   ))}
                   {incomingRequests.length === 0 && (
-                    <p className="text-xs text-[#988686] py-3 text-center">No incoming connection requests.</p>
+                    <div className="py-4 text-center">
+                      <p className="text-sm font-medium text-[#D1D0D0]">No incoming requests</p>
+                      <p className="text-xs text-[#988686] mt-1">When someone wants to connect, it will show up here.</p>
+                    </div>
                   )}
                 </div>
               </div>
 
               {/* Connected Buddies */}
               <div className="bg-[#141111] border border-[#5C4E4E]/55 rounded-lg p-5">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-[#988686] mb-3">
-                  Connected Peers ({connections.length})
+                <h3 className="section-title mb-3">
+                  Your connections ({connections.length})
                 </h3>
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
                   {connections.map((c) => (
@@ -1247,17 +1266,21 @@ const Dashboard = () => {
                         )}
                       </Avatar>
                       <div className="flex-1 min-w-0">
-                        <h4 className="font-semibold text-xs truncate">{c.name}</h4>
-                        <p className="text-[11px] text-[#988686] truncate">{c.title || c.email}</p>
-                        <button onClick={() => setSelectedUserModal(c)} className="mt-2 text-[11px] font-medium text-[#D1D0D0] hover:underline">
+                        <h4 className="font-semibold text-sm truncate">{c.name}</h4>
+                        <p className="text-xs text-[#988686] truncate">{c.title || c.email}</p>
+                        <button onClick={() => setSelectedUserModal(c)} className="mt-2 text-sm font-medium text-[#D1D0D0] hover:underline">
                           View Profile
                         </button>
                       </div>
                     </div>
                   ))}
                   {connections.length === 0 && (
-                    <div className="col-span-full py-6 text-center text-xs text-[#988686]">
-                      No active connections found.
+                    <div className="col-span-full py-8 text-center">
+                      <p className="empty-state-title">No connections yet</p>
+                      <p className="empty-state-body mb-3">Start discovering people with similar skills and interests.</p>
+                      <button onClick={() => setActiveTab('find-match')} className="btn-primary">
+                        Find buddies
+                      </button>
                     </div>
                   )}
                 </div>
@@ -1270,8 +1293,8 @@ const Dashboard = () => {
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-xl font-bold text-[#D1D0D0]">Active Challenges</h2>
-                  <p className="text-xs text-[#988686]">Developer sprints & problem solving</p>
+                  <h2 className="page-title">Challenges</h2>
+                  <p className="page-subtitle">Skill sprints and problem-solving challenges</p>
                 </div>
                 <button onClick={loadChallenges} className="btn-outline">Refresh</button>
               </div>
@@ -1291,8 +1314,8 @@ const Dashboard = () => {
                           </span>
                           <span className="text-xs font-mono font-medium text-[#988686]">{c.points || 150} pts</span>
                         </div>
-                        <h3 className="font-bold text-sm mb-1 text-[#D1D0D0]">{c.title}</h3>
-                        <p className="text-xs text-[#988686] line-clamp-2 mb-4">{c.description}</p>
+                        <h3 className="font-bold text-base mb-1 text-[#D1D0D0]">{c.title}</h3>
+                        <p className="text-sm text-[#988686] line-clamp-2 mb-4">{c.description}</p>
                       </div>
 
                       <div className="pt-3 border-t border-[#5C4E4E]/40">
@@ -1310,7 +1333,7 @@ const Dashboard = () => {
                             </button>
                           ) : (
                             <button onClick={() => joinChallenge(c.id)} disabled={joiningId === c.id} className="px-3 py-1.5 text-xs font-semibold bg-[#D1D0D0] text-black rounded-md hover:bg-[#e8e7e7] transition">
-                              Join Sprint
+                              Join challenge
                             </button>
                           )}
                         </div>
@@ -1327,12 +1350,12 @@ const Dashboard = () => {
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-xl font-bold text-[#D1D0D0]">Community Events</h2>
-                  <p className="text-xs text-[#988686]">Live tech talks & workshops</p>
+                  <h2 className="page-title">Events</h2>
+                  <p className="page-subtitle">Talks, workshops, and community gatherings</p>
                 </div>
                 <div className="flex gap-2">
                   <button onClick={() => setShowCreateEventModal(true)} className="btn-primary">
-                    <Plus className="w-3.5 h-3.5 mr-1" /> Create Event
+                    <Plus className="w-3.5 h-3.5 mr-1" /> Create event
                   </button>
                   <button onClick={loadEvents} className="btn-outline">Refresh</button>
                 </div>
@@ -1350,9 +1373,9 @@ const Dashboard = () => {
                         <span className="text-[10px] font-semibold bg-[#5C4E4E]/40 px-2 py-0.5 rounded text-[#D1D0D0] mb-2 inline-block">
                           {e.location || 'Online'}
                         </span>
-                        <h3 className="font-bold text-sm text-[#D1D0D0] mb-1">{e.title}</h3>
-                        <p className="text-xs text-[#988686] line-clamp-2 mb-3">{e.description}</p>
-                        <div className="text-xs text-[#988686] space-y-1 mb-4">
+                        <h3 className="font-bold text-base text-[#D1D0D0] mb-1">{e.title}</h3>
+                        <p className="text-sm text-[#988686] line-clamp-2 mb-3">{e.description}</p>
+                        <div className="text-sm text-[#988686] space-y-1 mb-4">
                           <p className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 text-[#988686]" /> {e.date || 'TBA'} {e.time}</p>
                           <p className="flex items-center gap-1.5"><Users className="w-3.5 h-3.5 text-[#988686]" /> {e.attendees_count || 0} Attendees</p>
                         </div>
@@ -1383,8 +1406,8 @@ const Dashboard = () => {
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-xl font-bold text-[#D1D0D0]">Notifications</h2>
-                  <p className="text-xs text-[#988686]">Activity alerts & announcements</p>
+                  <h2 className="page-title">Notifications</h2>
+                  <p className="page-subtitle">Connection requests, community updates, and announcements</p>
                 </div>
                 <button 
                   onClick={async () => {
@@ -1393,7 +1416,7 @@ const Dashboard = () => {
                   }}
                   className="text-xs text-red-600 hover:underline font-medium"
                 >
-                  Clear All
+                  Clear all
                 </button>
               </div>
 
@@ -1423,15 +1446,16 @@ const Dashboard = () => {
                       )}
                       {!n.read && (
                         <button onClick={() => markNotificationRead(n.id)} className="text-[11px] text-[#988686] hover:underline font-medium">
-                          Mark Read
+                          Mark read
                         </button>
                       )}
                     </div>
                   </div>
                 ))}
                 {notificationsData.length === 0 && (
-                  <div className="p-8 text-center text-xs text-[#988686]">
-                    No new notifications.
+                  <div className="p-10 text-center">
+                    <p className="empty-state-title">You're all caught up</p>
+                    <p className="empty-state-body">New connection requests and community updates will appear here.</p>
                   </div>
                 )}
               </div>
@@ -1442,8 +1466,8 @@ const Dashboard = () => {
           {activeTab === "profile" && (
             <div className="space-y-6 max-w-3xl">
               <div>
-                <h2 className="page-title">Edit Profile</h2>
-                <p className="page-subtitle">Your profile powers skill matching and community discovery.</p>
+                <h2 className="page-title">Edit profile</h2>
+                <p className="page-subtitle">Your profile powers matching and discovery across Skillzy.</p>
               </div>
 
               <div className="bg-[#141111] border border-[#5C4E4E]/55 rounded-lg p-6 space-y-6">
@@ -1485,29 +1509,29 @@ const Dashboard = () => {
                   {/* Basic fields */}
                   <div className="grid sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="label-text">Professional title</label>
-                      <input className="input-clean" value={profileForm.title} onChange={(e)=>setProfileForm({...profileForm, title: e.target.value})} placeholder="Senior Software Engineer" />
+                      <label className="label-text-required">Title</label>
+                      <input className="input-clean" value={profileForm.title} onChange={(e)=>setProfileForm({...profileForm, title: e.target.value})} placeholder="Student, Software Engineer, Designer…" />
                     </div>
                     <div>
-                      <label className="label-text">Company</label>
-                      <input className="input-clean" value={profileForm.company} onChange={(e)=>setProfileForm({...profileForm, company: e.target.value})} placeholder="Organization or freelance" />
+                      <label className="label-text">{getOrgFieldMeta(profileForm.title).label}</label>
+                      <input className="input-clean" value={profileForm.company} onChange={(e)=>setProfileForm({...profileForm, company: e.target.value})} placeholder={getOrgFieldMeta(profileForm.title).placeholder} />
                     </div>
                   </div>
 
                   <div className="grid sm:grid-cols-2 gap-4">
                     <div>
                       <label className="label-text">Location</label>
-                      <input className="input-clean" value={profileForm.location} onChange={(e)=>setProfileForm({...profileForm, location: e.target.value})} placeholder="City, Country" />
+                      <input className="input-clean" value={profileForm.location} onChange={(e)=>setProfileForm({...profileForm, location: e.target.value})} placeholder="e.g. Pune, Maharashtra" />
                     </div>
                     <div>
-                      <label className="label-text">Career goals</label>
-                      <input className="input-clean" value={profileForm.careerGoals} onChange={(e)=>setProfileForm({...profileForm, careerGoals: e.target.value})} placeholder="e.g. Build distributed systems" />
+                      <label className="label-text">Goals <span className="text-[#6e6262] font-normal">(optional)</span></label>
+                      <input className="input-clean" value={profileForm.careerGoals} onChange={(e)=>setProfileForm({...profileForm, careerGoals: e.target.value})} placeholder="What you want to learn or achieve" />
                     </div>
                   </div>
 
                   <div>
-                    <label className="label-text">Bio</label>
-                    <textarea className="input-clean resize-none" rows={3} value={profileForm.bio} onChange={(e)=>setProfileForm({...profileForm, bio: e.target.value})} placeholder="Brief background and what you're working on..." />
+                    <label className="label-text-required">Bio</label>
+                    <textarea className="input-clean resize-none" rows={3} value={profileForm.bio} onChange={(e)=>setProfileForm({...profileForm, bio: e.target.value})} placeholder="Tell others what you know, what you're learning, and what you'd like to connect about." />
                   </div>
 
                   {/* Skills — tag pill UI */}
@@ -1598,7 +1622,7 @@ const Dashboard = () => {
 
                   <div className="flex items-center gap-3 pt-2 border-t border-[#5C4E4E]/40">
                     <button type="submit" disabled={profileSaving} className="btn-primary">
-                      {profileSaving ? (<Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />) : null} Save changes
+                      {profileSaving ? (<><Loader2 className="w-3.5 h-3.5 animate-spin" /> Saving...</>) : 'Save profile'}
                     </button>
                     {profileMessage && (
                       <span className={`text-xs font-semibold ${profileMessage.includes('Failed') ? 'text-red-600' : 'text-emerald-600'}`}>
@@ -1615,8 +1639,8 @@ const Dashboard = () => {
           {activeTab === "settings" && (
             <div className="space-y-6 max-w-xl">
               <div>
-                <h2 className="text-xl font-bold text-[#D1D0D0]">Account Settings</h2>
-                <p className="text-xs text-[#988686]">Preferences and visibility configuration</p>
+                <h2 className="page-title">Settings</h2>
+                <p className="page-subtitle">Notifications and profile visibility</p>
               </div>
 
               <div className="bg-[#141111] border border-[#5C4E4E]/55 rounded-lg p-6 space-y-4">
@@ -1639,7 +1663,7 @@ const Dashboard = () => {
                   </label>
                   <div className="flex items-center gap-3 pt-2">
                     <button type="submit" disabled={settingsSaving} className="btn-primary">
-                      {settingsSaving ? (<Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />) : null} Save Settings
+                      {settingsSaving ? (<><Loader2 className="w-3.5 h-3.5 animate-spin" /> Saving...</>) : 'Save settings'}
                     </button>
                     {settingsMessage && (<span className="text-xs font-bold text-emerald-600">{settingsMessage}</span>)}
                   </div>
@@ -1652,8 +1676,8 @@ const Dashboard = () => {
           {activeTab === "admin" && isAdmin && (
             <div className="space-y-6 max-w-3xl">
               <div>
-                <h2 className="text-xl font-bold text-[#D1D0D0]">Admin Control Panel</h2>
-                <p className="text-xs text-[#988686]">Platform governance tools</p>
+                <h2 className="page-title">Admin</h2>
+                <p className="page-subtitle">Create challenges, events, and broadcasts</p>
               </div>
 
               {adminActionStatus && (
@@ -1701,12 +1725,12 @@ const Dashboard = () => {
             <div className="space-y-6">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
-                  <h2 className="text-xl font-bold text-[#D1D0D0]">Communities</h2>
-                  <p className="text-xs text-[#988686]">Groups you joined and can open</p>
+                  <h2 className="page-title">Communities</h2>
+                  <p className="page-subtitle">Groups you've joined and can open</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <button onClick={() => setShowCreateCommunity(true)} className="btn-primary">
-                    <Plus className="w-3.5 h-3.5 mr-1" /> Create Community
+                    <Plus className="w-3.5 h-3.5 mr-1" /> Create community
                   </button>
                   <button onClick={() => { setShowJoinCommunity(true); loadAllCommunities(); }} className="btn-outline">
                     Browse All
@@ -1732,8 +1756,8 @@ const Dashboard = () => {
                       <span className="text-[10px] font-semibold bg-[#5C4E4E]/40 px-2 py-0.5 rounded text-[#D1D0D0] mb-2 inline-block">
                         {community.domain || 'Tech'}
                       </span>
-                      <h3 className="font-bold text-sm text-[#D1D0D0] mb-1">{community.name}</h3>
-                      <p className="text-xs text-[#988686] line-clamp-2 mb-4">{community.description}</p>
+                      <h3 className="font-bold text-base text-[#D1D0D0] mb-1">{community.name}</h3>
+                      <p className="text-sm text-[#988686] line-clamp-2 mb-4">{community.description}</p>
                     </div>
                     <div className="pt-3 border-t border-[#5C4E4E]/40">
                       <div className="flex items-center justify-between text-xs text-[#988686] mb-3">
@@ -1742,7 +1766,7 @@ const Dashboard = () => {
                       </div>
                       <div className="flex gap-2">
                         <button onClick={() => setSelectedCommunity(community)} className="flex-1 px-3 py-1.5 text-xs font-semibold bg-[#D1D0D0] text-black rounded-md hover:bg-[#e8e7e7] transition">
-                          Open Community
+                          Open community
                         </button>
                         <button onClick={() => leaveCommunity(community.id)} className="px-3 py-1.5 text-xs font-medium border border-red-300 text-red-600 rounded-md hover:bg-red-50 transition">
                           Leave
@@ -1752,10 +1776,21 @@ const Dashboard = () => {
                   </div>
                 ))}
                 {filteredCommunities.length === 0 && (
-                  <div className="col-span-full py-12 text-center text-xs text-[#988686] bg-[#141111] rounded-lg border border-[#5C4E4E]/55">
-                    {communitySearch.trim()
-                      ? 'No communities match your search.'
-                      : 'Not joined in any community yet. Click Browse All to discover groups.'}
+                  <div className="col-span-full py-12 text-center bg-[#141111] rounded-lg border border-[#5C4E4E]/55">
+                    {communitySearch.trim() ? (
+                      <>
+                        <p className="empty-state-title">No matching communities</p>
+                        <p className="empty-state-body">Try a different search term.</p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="empty-state-title">No communities yet</p>
+                        <p className="empty-state-body mb-3">Browse groups around the skills you care about, or create your own.</p>
+                        <button onClick={() => setShowJoinCommunity(true)} className="btn-primary">
+                          Browse communities
+                        </button>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
@@ -1853,7 +1888,7 @@ const Dashboard = () => {
                 </button>
               ) : (
                 <button onClick={() => joinChallenge(selectedChallengeModal.id)} className="btn-primary">
-                  Join Challenge
+                  Join challenge
                 </button>
               )}
             </div>

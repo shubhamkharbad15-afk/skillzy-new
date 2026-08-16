@@ -1,4 +1,5 @@
 from motor.motor_asyncio import AsyncIOMotorDatabase
+import asyncio
 import schemas
 from auth import get_password_hash
 from ml_model import create_profile_text, generate_embedding
@@ -46,17 +47,31 @@ async def create_user(db: AsyncIOMotorDatabase, user: schemas.UserCreate):
     created_user = await get_user_by_email(db, new_user["email"])
     return created_user
 
-async def update_user_profile(db: AsyncIOMotorDatabase, email: str, profile_data: schemas.ProfileUpdate):
+async def _store_embedding(db: AsyncIOMotorDatabase, email: str, profile_data: schemas.ProfileUpdate):
+    """Generate and store embedding without blocking profile save."""
+    try:
+        profile_text = create_profile_text(profile_data)
+        embedding = await asyncio.to_thread(generate_embedding, profile_text)
+        await db["users"].update_one({"email": email}, {"$set": {"embedding": embedding}})
+    except Exception as exc:
+        print(f"Embedding generation failed for {email}: {exc}")
+
+async def update_user_profile(db: AsyncIOMotorDatabase, email: str, profile_data: schemas.ProfileUpdate, *, defer_embedding: bool = False):
     update_data = profile_data.model_dump()
     update_data["profile_complete"] = True
 
-    profile_text = create_profile_text(profile_data)
-    embedding = generate_embedding(profile_text)
-    update_data["embedding"] = embedding
-
+    # Persist profile immediately so onboarding is not blocked by ML model load
     await db["users"].update_one(
         {"email": email},
         {"$set": update_data}
     )
+
+    if not defer_embedding:
+        await _store_embedding(db, email, profile_data)
+
     updated_user = await get_user_by_email(db, email)
     return updated_user
+
+
+async def generate_user_embedding(db: AsyncIOMotorDatabase, email: str, profile_data: schemas.ProfileUpdate):
+    await _store_embedding(db, email, profile_data)

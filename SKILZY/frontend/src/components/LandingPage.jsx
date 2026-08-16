@@ -458,7 +458,7 @@ export default function LandingPage() {
                 { message: "Someone accepted your connection request", time: "Just now", dot: "bg-emerald-400" },
                 { message: "New message in a community you joined", time: "Recently", dot: "bg-[#988686]" },
                 { message: "You joined a challenge — points are tracked when you participate", time: "Today", dot: "bg-amber-400" },
-                { message: "An event you RSVPâ€™d to is starting soon", time: "Today", dot: "bg-blue-400" },
+                { message: "An event you RSVP'd to is starting soon", time: "Today", dot: "bg-blue-400" },
                 { message: "You received a new connection request", time: "Earlier", dot: "bg-emerald-400" },
               ].map((n, i) => (
                 <div key={i} className="flex items-start gap-3 p-3.5 bg-[#141111] rounded-lg border border-[#5C4E4E]/55">

@@ -1,13 +1,17 @@
-﻿import { useState, useEffect } from "react";
+﻿import { useState, useEffect, useMemo } from "react";
 import { X, Plus, Loader2, User, Sparkles, Target, ArrowRight, ArrowLeft, Check } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { fetchWithAuth } from "../lib/api";
+import { getOrgFieldMeta } from "../lib/profileFields";
 
 const STEP_CONFIG = [
-  { id: 1, label: "Basic info", icon: User, title: "Your professional background", description: "Tell the Skillzy community who you are." },
+  { id: 1, label: "Basic info", icon: User, title: "About you", description: "Tell the Skillzy community who you are." },
   { id: 2, label: "Skills", icon: Sparkles, title: "What do you know?", description: "Add the skills you have. Others will find you based on these." },
   { id: 3, label: "Goals", icon: Target, title: "Interests and goals", description: "What are you interested in, and where are you headed?" }
 ];
+
+const INPUT_CLASS =
+  "w-full rounded-lg border border-[#5C4E4E]/55 bg-[#141111] px-3.5 py-2.5 text-sm text-[#D1D0D0] placeholder:text-[#6e6262] focus:outline-none focus:border-[#988686] focus:ring-1 focus:ring-[#988686]/40 transition-colors";
 
 const ProfileSetup = () => {
   const navigate = useNavigate();
@@ -27,6 +31,8 @@ const ProfileSetup = () => {
     bio: "",
     careerGoals: ""
   });
+
+  const orgField = useMemo(() => getOrgFieldMeta(formData.title), [formData.title]);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -62,6 +68,9 @@ const ProfileSetup = () => {
     }
   };
 
+  const canAdvanceStep1 = formData.title.trim() && formData.bio.trim();
+  const canAdvanceStep2 = skills.length > 0;
+
   const handleComplete = async () => {
     setError("");
     if (!formData.title.trim() || !formData.bio.trim() || skills.length === 0 || interests.length === 0) {
@@ -82,8 +91,13 @@ const ProfileSetup = () => {
       await fetchWithAuth("/users/me/profile", { method: "POST", body: JSON.stringify(profileData) });
       navigate("/dashboard", { replace: true });
     } catch (err) {
-      setError(err?.message || "Failed to save your profile. Please try again.");
-    } finally {
+      const raw = err?.message || "";
+      const friendly = raw.includes("401")
+        ? "Your session expired. Please sign in again."
+        : raw.includes("HTTP error")
+        ? "Couldn't save your profile. Check your connection and try again."
+        : (raw || "Failed to save your profile. Please try again.");
+      setError(friendly);
       setSaving(false);
     }
   };
@@ -111,7 +125,6 @@ const ProfileSetup = () => {
 
   return (
     <div className="min-h-screen bg-black flex flex-col">
-      {/* Header */}
       <header className="bg-[#141111] border-b border-[#5C4E4E]/55 px-6 py-4">
         <div className="max-w-2xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -126,7 +139,6 @@ const ProfileSetup = () => {
 
       <div className="flex-1 flex items-start justify-center py-10 px-4">
         <div className="w-full max-w-2xl">
-          {/* Step progress */}
           <div className="mb-8">
             <div className="flex items-center gap-0">
               {STEP_CONFIG.map((s, index) => (
@@ -146,24 +158,22 @@ const ProfileSetup = () => {
                     }`}>{s.label}</span>
                   </div>
                   {index < STEP_CONFIG.length - 1 && (
-                    <div className={`flex-1 h-px mx-3 ${step > s.id ? "bg-emerald-200" : "bg-gray-200"}`} />
+                    <div className={`flex-1 h-px mx-3 ${step > s.id ? "bg-emerald-500/60" : "bg-[#5C4E4E]/55"}`} />
                   )}
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Main card */}
           <div className="bg-[#141111] rounded-2xl border border-[#5C4E4E]/55 shadow-sm">
-            {/* Card header */}
-            <div className="px-8 py-6 border-b border-[#5C4E4E]/40">
+            <div className="px-6 sm:px-8 py-6 border-b border-[#5C4E4E]/40">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 bg-[#D1D0D0] rounded-xl flex items-center justify-center">
+                <div className="w-9 h-9 bg-[#D1D0D0] rounded-xl flex items-center justify-center shrink-0">
                   <currentStepConfig.icon className="w-5 h-5 text-[#988686]" />
                 </div>
                 <div>
-                  <h2 className="text-base font-bold text-[#D1D0D0]">{currentStepConfig.title}</h2>
-                  <p className="text-xs text-[#988686]">{currentStepConfig.description}</p>
+                  <h2 className="text-lg font-bold text-[#D1D0D0]">{currentStepConfig.title}</h2>
+                  <p className="text-sm text-[#988686]">{currentStepConfig.description}</p>
                 </div>
               </div>
               {user?.first_name && step === 1 && (
@@ -173,90 +183,90 @@ const ProfileSetup = () => {
               )}
             </div>
 
-            {/* Form content */}
-            <div className="px-8 py-6 space-y-5">
-              {/* STEP 1 */}
+            <div className="px-6 sm:px-8 py-6 space-y-5">
               {step === 1 && (
                 <>
                   <div>
-                    <label className="block text-xs font-semibold text-[#D1D0D0] mb-1.5">
-                      Professional title <span className="text-red-500">*</span>
+                    <label className="block text-sm font-medium text-[#D1D0D0] mb-1.5">
+                      Title <span className="text-[#988686] font-normal" aria-hidden="true">*</span>
                     </label>
                     <input
                       type="text"
                       value={formData.title}
                       onChange={(e) => handleInputChange("title", e.target.value)}
-                      placeholder="e.g. Senior Software Engineer"
-                      className="w-full rounded-lg border border-[#5C4E4E]/55 px-3.5 py-2.5 text-sm text-[#D1D0D0] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-all"
+                      placeholder="Student, Software Engineer, Designer…"
+                      className={INPUT_CLASS}
+                      required
                     />
+                    <p className="text-xs text-[#6e6262] mt-1.5">Your role — student, professional, freelancer, or anything in between.</p>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-semibold text-[#D1D0D0] mb-1.5">Company</label>
+                      <label className="block text-sm font-medium text-[#988686] mb-1.5">{orgField.label}</label>
                       <input
                         type="text"
                         value={formData.company}
                         onChange={(e) => handleInputChange("company", e.target.value)}
-                        placeholder="e.g. Acme Corp"
-                        className="w-full rounded-lg border border-[#5C4E4E]/55 px-3.5 py-2.5 text-sm text-[#D1D0D0] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-all"
+                        placeholder={orgField.placeholder}
+                        className={INPUT_CLASS}
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-[#D1D0D0] mb-1.5">Location</label>
+                      <label className="block text-sm font-medium text-[#988686] mb-1.5">Location</label>
                       <input
                         type="text"
                         value={formData.location}
                         onChange={(e) => handleInputChange("location", e.target.value)}
-                        placeholder="e.g. San Francisco, CA"
-                        className="w-full rounded-lg border border-[#5C4E4E]/55 px-3.5 py-2.5 text-sm text-[#D1D0D0] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-all"
+                        placeholder="e.g. Pune, Maharashtra"
+                        className={INPUT_CLASS}
                       />
                     </div>
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-[#D1D0D0] mb-1.5">
-                      Bio <span className="text-red-500">*</span>
-                      <span className="text-[#988686] font-normal ml-1">— tell others about yourself</span>
+                    <label className="block text-sm font-medium text-[#D1D0D0] mb-1.5">
+                      Bio <span className="text-[#988686] font-normal" aria-hidden="true">*</span>
                     </label>
                     <textarea
                       value={formData.bio}
                       onChange={(e) => handleInputChange("bio", e.target.value)}
-                      placeholder="A brief description of your background, what you're working on, and what makes you interesting."
+                      placeholder="Tell others what you know, what you're learning, and what you'd like to connect with people about."
                       rows={4}
-                      className="w-full rounded-lg border border-[#5C4E4E]/55 px-3.5 py-2.5 text-sm text-[#D1D0D0] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-all resize-none"
+                      className={`${INPUT_CLASS} resize-none`}
+                      required
                     />
                   </div>
                 </>
               )}
 
-              {/* STEP 2 */}
               {step === 2 && (
                 <>
                   <div>
-                    <label className="block text-xs font-semibold text-[#D1D0D0] mb-1.5">
-                      Add a skill <span className="text-red-500">*</span>
+                    <label className="block text-sm font-medium text-[#D1D0D0] mb-1.5">
+                      Add a skill <span className="text-[#988686] font-normal" aria-hidden="true">*</span>
                     </label>
                     <div className="flex gap-2">
                       <input
                         type="text"
                         value={currentSkill}
                         onChange={(e) => setCurrentSkill(e.target.value)}
-                        placeholder="e.g. React, Product Management, Python"
+                        placeholder="React, Python, Product Management…"
                         onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addSkill(); } }}
-                        className="flex-1 rounded-lg border border-[#5C4E4E]/55 px-3.5 py-2.5 text-sm text-[#D1D0D0] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-all"
+                        className={`${INPUT_CLASS} flex-1`}
                       />
                       <button
                         type="button"
                         onClick={addSkill}
                         className="px-4 py-2.5 bg-[#D1D0D0] text-black text-sm font-medium rounded-lg hover:bg-[#e8e7e7] transition-colors"
+                        aria-label="Add skill"
                       >
                         <Plus className="w-4 h-4" />
                       </button>
                     </div>
-                    <p className="text-xs text-[#988686] mt-1.5">Press Enter or click + to add</p>
+                    <p className="text-xs text-[#6e6262] mt-1.5">Press Enter or click + to add</p>
                   </div>
                   {skills.length > 0 && (
                     <div>
-                      <p className="text-xs font-semibold text-[#D1D0D0] mb-2">Your skills ({skills.length})</p>
+                      <p className="text-sm font-medium text-[#D1D0D0] mb-2">Your skills ({skills.length})</p>
                       <div className="flex flex-wrap gap-2">
                         {skills.map(skill => (
                           <span key={skill} className="inline-flex items-center gap-1.5 bg-[#D1D0D0] text-black text-xs font-medium px-3 py-1.5 rounded-md border border-[#5C4E4E]/55">
@@ -270,47 +280,47 @@ const ProfileSetup = () => {
                     </div>
                   )}
                   {skills.length === 0 && (
-                    <div className="py-6 border border-dashed border-[#5C4E4E]/55 rounded-lg text-center text-xs text-[#988686]">
+                    <div className="py-6 border border-dashed border-[#5C4E4E]/55 rounded-lg text-center text-sm text-[#988686]">
                       No skills added yet. Add at least one to continue.
                     </div>
                   )}
                 </>
               )}
 
-              {/* STEP 3 */}
               {step === 3 && (
                 <>
                   <div>
-                    <label className="block text-xs font-semibold text-[#D1D0D0] mb-1.5">
-                      Add an interest <span className="text-red-500">*</span>
+                    <label className="block text-sm font-medium text-[#D1D0D0] mb-1.5">
+                      Add an interest <span className="text-[#988686] font-normal" aria-hidden="true">*</span>
                     </label>
                     <div className="flex gap-2">
                       <input
                         type="text"
                         value={currentInterest}
                         onChange={(e) => setCurrentInterest(e.target.value)}
-                        placeholder="e.g. AI, Startups, Open Source, Design"
+                        placeholder="AI, open source, design, startups…"
                         onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addInterest(); } }}
-                        className="flex-1 rounded-lg border border-[#5C4E4E]/55 px-3.5 py-2.5 text-sm text-[#D1D0D0] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-all"
+                        className={`${INPUT_CLASS} flex-1`}
                       />
                       <button
                         type="button"
                         onClick={addInterest}
                         className="px-4 py-2.5 bg-[#D1D0D0] text-black text-sm font-medium rounded-lg hover:bg-[#e8e7e7] transition-colors"
+                        aria-label="Add interest"
                       >
                         <Plus className="w-4 h-4" />
                       </button>
                     </div>
-                    <p className="text-xs text-[#988686] mt-1.5">Press Enter or click + to add</p>
+                    <p className="text-xs text-[#6e6262] mt-1.5">Press Enter or click + to add</p>
                   </div>
                   {interests.length > 0 && (
                     <div>
-                      <p className="text-xs font-semibold text-[#D1D0D0] mb-2">Your interests ({interests.length})</p>
+                      <p className="text-sm font-medium text-[#D1D0D0] mb-2">Your interests ({interests.length})</p>
                       <div className="flex flex-wrap gap-2">
                         {interests.map(interest => (
                           <span key={interest} className="inline-flex items-center gap-1.5 bg-[#5C4E4E]/35 text-[#D1D0D0] text-xs font-medium px-3 py-1.5 rounded-md border border-[#5C4E4E]">
                             {interest}
-                            <button type="button" onClick={() => setInterests(prev => prev.filter(i => i !== interest))} className="text-indigo-400 hover:text-red-500 transition-colors">
+                            <button type="button" onClick={() => setInterests(prev => prev.filter(i => i !== interest))} className="text-[#988686] hover:text-red-400 transition-colors">
                               <X className="w-3 h-3" />
                             </button>
                           </span>
@@ -319,35 +329,33 @@ const ProfileSetup = () => {
                     </div>
                   )}
                   {interests.length === 0 && (
-                    <div className="py-6 border border-dashed border-[#5C4E4E]/55 rounded-lg text-center text-xs text-[#988686]">
+                    <div className="py-6 border border-dashed border-[#5C4E4E]/55 rounded-lg text-center text-sm text-[#988686]">
                       No interests added yet. Add at least one to continue.
                     </div>
                   )}
                   <div>
-                    <label className="block text-xs font-semibold text-[#D1D0D0] mb-1.5">
-                      Career goals <span className="text-[#988686] font-normal">(optional)</span>
+                    <label className="block text-sm font-medium text-[#988686] mb-1.5">
+                      Goals <span className="text-[#6e6262] font-normal">(optional)</span>
                     </label>
                     <textarea
                       value={formData.careerGoals}
                       onChange={(e) => handleInputChange("careerGoals", e.target.value)}
-                      placeholder="Where are you headed? What do you want to achieve in the next year or two?"
+                      placeholder="What do you want to learn or achieve in the next year?"
                       rows={3}
-                      className="w-full rounded-lg border border-[#5C4E4E]/55 px-3.5 py-2.5 text-sm text-[#D1D0D0] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-all resize-none"
+                      className={`${INPUT_CLASS} resize-none`}
                     />
                   </div>
                 </>
               )}
 
-              {/* Error display during save */}
-              {error && saving === false && (
-                <div className="p-3 bg-red-50 border border-red-100 text-red-700 rounded-lg text-sm">
+              {error && !saving && (
+                <div className="p-3 bg-red-950/40 border border-red-900/50 text-red-300 rounded-lg text-sm">
                   {error}
                 </div>
               )}
             </div>
 
-            {/* Navigation footer */}
-            <div className="px-8 py-5 border-t border-[#5C4E4E]/40 flex items-center justify-between">
+            <div className="px-6 sm:px-8 py-5 border-t border-[#5C4E4E]/40 flex items-center justify-between gap-3">
               <button
                 type="button"
                 onClick={() => setStep(prev => Math.max(1, prev - 1))}
@@ -362,7 +370,7 @@ const ProfileSetup = () => {
                   <div
                     key={s.id}
                     className={`w-1.5 h-1.5 rounded-full transition-all ${
-                      step === s.id ? "bg-[#D1D0D0] w-4" : step > s.id ? "bg-emerald-400" : "bg-gray-200"
+                      step === s.id ? "bg-[#D1D0D0] w-4" : step > s.id ? "bg-emerald-400" : "bg-[#5C4E4E]"
                     }`}
                   />
                 ))}
@@ -372,22 +380,22 @@ const ProfileSetup = () => {
                 <button
                   type="button"
                   onClick={() => setStep(prev => Math.min(3, prev + 1))}
-                  disabled={saving}
+                  disabled={saving || (step === 1 && !canAdvanceStep1) || (step === 2 && !canAdvanceStep2)}
                   className="inline-flex items-center gap-1.5 px-5 py-2 text-sm font-semibold bg-[#D1D0D0] text-black rounded-lg hover:bg-[#e8e7e7] transition-colors disabled:opacity-60"
                 >
-                  Next <ArrowRight className="w-4 h-4" />
+                  {step === 1 ? "Continue to skills" : "Continue to goals"} <ArrowRight className="w-4 h-4" />
                 </button>
               ) : (
                 <button
                   type="button"
                   onClick={handleComplete}
-                  disabled={saving}
+                  disabled={saving || interests.length === 0}
                   className="inline-flex items-center gap-1.5 px-5 py-2 text-sm font-semibold bg-[#5C4E4E] text-[#D1D0D0] rounded-lg hover:bg-[#6a5a5a] transition-colors disabled:opacity-60"
                 >
                   {saving ? (
-                    <><Loader2 className="w-4 h-4 animate-spin" /> Savingâ€¦</>
+                    <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</>
                   ) : (
-                    <><Check className="w-4 h-4" /> Complete setup</>
+                    <><Check className="w-4 h-4" /> Save profile</>
                   )}
                 </button>
               )}
@@ -395,7 +403,7 @@ const ProfileSetup = () => {
           </div>
 
           <p className="text-center text-xs text-[#988686] mt-4">
-            You can edit everything later from your profile settings.
+            You can edit everything later from your profile.
           </p>
         </div>
       </div>
